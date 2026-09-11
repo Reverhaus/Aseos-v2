@@ -1355,93 +1355,13 @@ function renderMenus() {
    SWIPE GENÉRICO
    ===================================================================== */
 function prepararSwipe(wrap) {
-  const card = wrap.querySelector('.swipe-target');
-  const bg   = wrap.querySelector('.swipe-bg');
-  if (!card || !bg) return;
-  const id = wrap.dataset.id;
-  const ambito = wrap.dataset.ambito;
-  const completada = wrap.dataset.completado === 'true';
-  const textoCompletar = wrap.dataset.textoCompletar || '✓ Completar';
-  let startX = 0, startY = 0, dx = 0, activo = false, eje = null, pid = null;
-
-  function resetBg() {
-    bg.classList.remove('izquierda');
-    bg.textContent = '';
-  }
-
-  wrap.addEventListener('pointerdown', (ev) => {
-    if (ev.target.closest('button')) return;
-    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
-    activo = true; eje = null; dx = 0; pid = ev.pointerId;
-    startX = ev.clientX; startY = ev.clientY;
-    card.style.transition = 'none';
-    resetBg();
-  });
-
-  wrap.addEventListener('pointermove', (ev) => {
-    if (!activo || ev.pointerId !== pid) return;
-    const mx = ev.clientX - startX;
-    const my = ev.clientY - startY;
-    if (eje === null) {
-      if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;
-      eje = Math.abs(mx) > Math.abs(my) ? 'x' : 'y';
-      if (eje === 'x') { try { wrap.setPointerCapture(pid); } catch (e) {} }
-    }
-    if (eje !== 'x') return;
-    const tope = (wrap.offsetWidth || 320) * 0.55;
-    dx = Math.max(-tope, Math.min(tope, mx));
-    card.style.transform = `translateX(${dx}px)`;
-
-    if (dx > 4) {
-      if (bg.classList.contains('izquierda')) bg.classList.remove('izquierda');
-      if (bg.textContent !== textoCompletar) bg.textContent = textoCompletar;
-    } else if (dx < -4) {
-      if (!bg.classList.contains('izquierda')) bg.classList.add('izquierda');
-      if (bg.textContent !== '↩ Recuperar') bg.textContent = '↩ Recuperar';
-    } else {
-      resetBg();
-    }
-  });
-
-  function soltar(ev) {
-    if (!activo) return;
-    if (ev && ev.pointerId !== undefined && ev.pointerId !== pid) return;
-    const enEjeX = eje === 'x';
-    activo = false; eje = null;
-    if (!enEjeX) { dx = 0; resetBg(); return; }
-
-    const umbral = 80;
-    const ancho = wrap.offsetWidth || 320;
-    card.style.transition = 'transform .3s cubic-bezier(.22,1,.36,1), opacity .3s ease';
-
-    if (dx > umbral && !completada) {
-      vibrar(18);
-      card.style.transform = `translateX(${ancho}px)`;
-      card.style.opacity = '0';
-      setTimeout(() => {
-        setHecho(id, ambito, true);
-        if (ambito.startsWith('menu-')) renderMenus();
-        else renderAseo();
-      }, 190);
-    } else if (dx < -umbral && completada) {
-      vibrar(18);
-      card.style.transform = `translateX(${-ancho}px)`;
-      card.style.opacity = '0';
-      setTimeout(() => {
-        setHecho(id, ambito, false);
-        if (ambito.startsWith('menu-')) renderMenus();
-        else renderAseo();
-      }, 190);
-    } else {
-      card.style.transform = 'translateX(0)';
-      resetBg();
-    }
-    dx = 0;
-  }
-
+  ... (todo el código nuevo) ...
   wrap.addEventListener('pointerup', soltar);
-  wrap.addEventListener('pointercancel', soltar);
-  wrap.addEventListener('lostpointercapture', soltar);
+  wrap.addEventListener('pointercancel', cancelarDrag);
+}
+
+function renderFiltros() {
+  ... (esto no lo tocas) ...
 }
 
 function renderFiltros() {
