@@ -484,6 +484,29 @@ body::after{
 }
 .tabbar button .ic{font-size:1.35rem;line-height:1}
 .tabbar button.activo{background:var(--verde-claro);color:var(--verde);}
+
+/* ---------- Label estilizado como botón (para input file oculto) ---------- */
+label.btn-secundario{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  text-align:center;
+  cursor:pointer;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+/* ---------- Mensajes de estado en modales export/import ---------- */
+.imp-msg{
+  margin:10px 0 0;
+  font-size:.88rem;
+  font-weight:700;
+  min-height:1.2em;
+  color:var(--texto-suave);
+}
+.imp-msg.ok{ color:var(--verde); }
+.imp-msg.err{ color:var(--rojo); }
 </style>
 </head>
 <body>
@@ -2068,20 +2091,55 @@ $('#vistaGestion').addEventListener('click', (e) => {
       const txt = JSON.stringify(db, null, 2);
       abrirModal(`
         <h3 class="modal-titulo">Exportar datos</h3>
-        <p class="modal-ayuda">Copia este texto para guardar una copia de seguridad.</p>
+        <p class="modal-ayuda">Copia este texto o guarda un archivo .json como copia de seguridad.</p>
         <textarea class="area" id="expTxt" rows="9" readonly>${esc(txt)}</textarea>
+        <p class="imp-msg" id="expMsg"></p>
         <div class="modal-botones">
           <button class="btn-secundario" data-cerrar>Cerrar</button>
           <button class="btn-primario" id="expCopiar">Copiar</button>
+        </div>
+        <div class="modal-botones">
+          <button class="btn-secundario" id="expGuardar">💾 Guardar .json</button>
         </div>`, (caja) => {
+        const msg = caja.querySelector('#expMsg');
+
         caja.querySelector('#expCopiar').addEventListener('click', async () => {
           const ta = caja.querySelector('#expTxt');
           try {
             await navigator.clipboard.writeText(ta.value);
             caja.querySelector('#expCopiar').textContent = '¡Copiado!';
+            msg.textContent = 'JSON copiado al portapapeles.';
+            msg.className = 'imp-msg ok';
           } catch (err) {
             ta.focus(); ta.select();
-            try { document.execCommand('copy'); caja.querySelector('#expCopiar').textContent = '¡Copiado!'; } catch (e2) {}
+            try {
+              document.execCommand('copy');
+              caja.querySelector('#expCopiar').textContent = '¡Copiado!';
+              msg.textContent = 'JSON copiado al portapapeles.';
+              msg.className = 'imp-msg ok';
+            } catch (e2) {
+              msg.textContent = 'No se pudo copiar. Selecciona y copia manualmente.';
+              msg.className = 'imp-msg err';
+            }
+          }
+        });
+
+        caja.querySelector('#expGuardar').addEventListener('click', () => {
+          try {
+            const blob = new Blob([txt], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'aseo-menus-' + hoyISO() + '.json';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            msg.textContent = 'Archivo descargado.';
+            msg.className = 'imp-msg ok';
+          } catch (err) {
+            msg.textContent = 'No se pudo generar el archivo.';
+            msg.className = 'imp-msg err';
           }
         });
       });
@@ -2091,15 +2149,64 @@ $('#vistaGestion').addEventListener('click', (e) => {
     case 'importar':
       abrirModal(`
         <h3 class="modal-titulo">Importar datos</h3>
-        <p class="modal-ayuda">Pega una copia exportada. Se reemplazarán los datos actuales.</p>
+        <p class="modal-ayuda">Pega una copia exportada, elige un archivo .json o pégala desde el portapapeles. Se reemplazarán los datos actuales.</p>
         <textarea class="area" id="impTxt" rows="9" placeholder='{"zonas":[...]}'></textarea>
+        <p class="imp-msg" id="impMsg"></p>
+        <div class="modal-botones">
+          <label class="btn-secundario">
+            📁 Elegir archivo .json
+            <input type="file" id="impFile" accept=".json,application/json" hidden>
+          </label>
+          <button class="btn-secundario" id="impPegar">📋 Pegar</button>
+        </div>
         <div class="modal-botones">
           <button class="btn-secundario" data-cerrar>Cancelar</button>
           <button class="btn-primario" id="impOk">Importar</button>
         </div>`, (caja) => {
+        const ta  = caja.querySelector('#impTxt');
+        const msg = caja.querySelector('#impMsg');
+        const setMsg = (texto, tipo) => {
+          msg.textContent = texto || '';
+          msg.className = 'imp-msg' + (tipo ? ' ' + tipo : '');
+        };
+
+        /* a) Elegir archivo .json */
+        caja.querySelector('#impFile').addEventListener('change', async (ev) => {
+          const file = ev.target.files && ev.target.files[0];
+          if (!file) return;
+          try {
+            const texto = await file.text();
+            ta.value = texto;
+            setMsg('Archivo cargado: ' + file.name, 'ok');
+          } catch (err) {
+            setMsg('No se pudo leer el archivo.', 'err');
+          } finally {
+            ev.target.value = '';
+          }
+        });
+
+        /* b) Pegar desde el portapapeles */
+        caja.querySelector('#impPegar').addEventListener('click', async () => {
+          try {
+            if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
+              throw new Error('no-soportado');
+            }
+            const texto = await navigator.clipboard.readText();
+            if (!texto) {
+              setMsg('El portapapeles está vacío.', 'err');
+              return;
+            }
+            ta.value = texto;
+            setMsg('Texto pegado desde el portapapeles.', 'ok');
+          } catch (err) {
+            setMsg('No se pudo leer el portapapeles. Pega el texto manualmente.', 'err');
+          }
+        });
+
+        /* Importar: validación y reemplazo (idéntico al original) */
         caja.querySelector('#impOk').addEventListener('click', () => {
           try {
-            const datos = JSON.parse(caja.querySelector('#impTxt').value);
+            const datos = JSON.parse(ta.value);
             if (!datos || !Array.isArray(datos.zonas)) throw new Error('formato');
             const base = dbPorDefecto();
             db.zonas = datos.zonas;
@@ -2112,7 +2219,7 @@ $('#vistaGestion').addEventListener('click', (e) => {
             renderChipsOrden(); renderTabsMenu(); renderMenus();
             cambiarVista(db.ui.vista || 'aseo');
           } catch (err) {
-            alert('El texto no tiene un formato válido.');
+            setMsg('El texto no tiene un formato válido.', 'err');
           }
         });
       });
