@@ -1,0 +1,2171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Aseo y Menús</title>
+<meta name="theme-color" content="#205b4e">
+<meta name="description" content="Gestión del aseo diario y menús de residentes. Funciona sin conexión.">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Aseo y Menús">
+<style>
+:root{
+  --radio: 18px;
+  --fondo: #f2f5f4;
+  --card: #ffffff;
+  --texto: #16211f;
+  --texto-suave: #5c6b68;
+  --verde: #205b4e;
+  --verde-oscuro: #17423a;
+  --verde-claro: #e6efec;
+  --gris: #e4e9e7;
+  --oliva: #d4d800;
+  --naranja: #f2a31d;
+  --naranja-suave: #fdf1dc;
+  --rojo: #b3261e;
+
+  --topbar-ini: #205b4e;
+  --topbar-fin: #17423a;
+  --topbar-fecha: #cfe0da;
+  --topbar-sombra: rgba(23,66,58,.28);
+  --topbar-noche-op: 0;
+  --atmosfera-op: 0;
+
+  --resumen-bg: rgba(255,255,255,.14);
+  --resumen-color: #ffffff;
+
+  --chip-azul: #f2f6c9;
+  --chip-azul-txt: #5a6100;
+  --chip-prio-alta-txt: #8a5400;
+
+  --ducha-hoy-ini: #fbfde9;
+  --completada-bg: #f5f9ef;
+  --hab-completada-bg: #e9f0dd;
+  --hab-completada-txt: #5c6b2a;
+
+  --sobre-verde: #ffffff;
+  --sobre-oliva: #3c4000;
+  --sobre-aviso: #7a4a00;
+
+  --btn-peligro-bg: #fdecea;
+  --btn-peligro-borde: #f6c9c4;
+
+  --barra-prog-a: #d4d800;
+  --barra-prog-b: #a8d92b;
+  --barra-prog-fondo: rgba(255,255,255,.2);
+  --barra-relleno-glow: rgba(184,188,31,0);
+
+  --sombra-color: rgba(32,91,78,.10);
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:var(--fondo);
+  color:var(--texto);
+  font-size:17px;
+  line-height:1.35;
+  padding-top:var(--topbar-h, 260px);   /* ← reserva el hueco del topbar fixed */
+  padding-bottom:calc(104px + env(safe-area-inset-bottom));
+  overscroll-behavior-y:contain;
+  overflow-x:hidden;
+}
+button{font-family:inherit;font-size:1rem;cursor:pointer;border:none;background:none;color:inherit;padding:0}
+input,select,textarea{font-family:inherit;font-size:1rem}
+[hidden]{display:none !important}
+
+body::after{
+  content:"";
+  position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(74,157,136,.14), transparent 55%),
+    radial-gradient(circle at 85% 20%,  rgba(184,188,31,.05), transparent 45%);
+  opacity:var(--atmosfera-op);
+}
+
+/* ============================================================
+   TOPBAR (fixed) con panel desplegable
+   ============================================================ */
+.topbar{
+  position:fixed;
+  top:0; left:0; right:0;
+  z-index:20;
+  overflow:hidden;
+  background:linear-gradient(160deg, var(--topbar-ini), var(--topbar-fin));
+  color:#fff;
+  padding:calc(12px + env(safe-area-inset-top)) 16px 16px;
+  border-radius:0 0 26px 26px;
+  box-shadow:0 6px 22px var(--topbar-sombra);
+}
+.topbar::before{
+  content:"";position:absolute;inset:0;z-index:0;
+  background:linear-gradient(160deg,#1e3a4a 0%,#0b1e28 60%,#08161d 100%);
+  opacity:var(--topbar-noche-op);
+  pointer-events:none;
+}
+.topbar > *{position:relative;z-index:1;}
+
+.topbar-fijo{ /* bloque siempre visible */ }
+
+.marca{display:flex;align-items:center;gap:11px}
+.marca .logo{
+  font-size:1.7rem;line-height:1;
+  display:inline-block;
+  transition:filter .9s ease, transform .9s cubic-bezier(.34,1.56,.64,1);
+}
+.marca h1{margin:0;font-size:1.28rem;font-weight:800;letter-spacing:.2px}
+.marca .fecha{margin:3px 0 0;font-size:.85rem;color:var(--topbar-fecha);text-transform:capitalize}
+.progreso{margin-top:13px;display:flex;align-items:center;gap:10px}
+.barra{flex:1;height:12px;background:var(--barra-prog-fondo);border-radius:99px;overflow:hidden}
+.barra .relleno{
+  height:100%;width:0%;border-radius:99px;
+  background:linear-gradient(90deg, var(--barra-prog-a), var(--barra-prog-b));
+  box-shadow:0 0 12px var(--barra-relleno-glow);
+  transition:width .55s cubic-bezier(.22,1,.36,1);
+}
+.progreso .texto{font-size:.95rem;font-weight:800;min-width:78px;text-align:right;font-variant-numeric:tabular-nums}
+.resumen-menus{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px}
+.resumen-menus .rm{
+  display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:99px;
+  background:var(--resumen-bg);font-size:.85rem;font-weight:800;color:var(--resumen-color);
+}
+.resumen-menus .rm b{font-size:1rem}
+
+/* ============================================================
+   PANEL DESPLEGABLE
+   ============================================================ */
+.topbar-panel{
+  overflow:hidden;
+  /* la altura la controla JS · sin padding propio, el topbar ya tiene 16px */
+  height:auto;
+}
+.topbar-panel[hidden]{display:none}
+
+/* Los controles del panel viven dentro del topbar (16px padding) */
+.topbar-panel .selector-turno{ margin:12px 0 0; }
+.topbar-panel .filtros{ padding:10px 0 0; }
+.topbar-panel .orden{ padding:10px 0 4px; }
+.topbar-panel .sub-tabs{ padding:10px 0 2px; }
+
+/* ---------- Selector deslizable Mañana/Tarde ---------- */
+.selector-turno{
+  position:relative;
+  display:flex;align-items:center;
+  height:52px;
+  border-radius:16px;
+  background:var(--gris);
+  padding:4px;
+  touch-action:none;
+  user-select:none;-webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;
+  overflow:hidden;
+  cursor:grab;
+}
+.selector-turno:active{cursor:grabbing}
+.selector-turno .thumb{
+  position:absolute;top:4px;left:4px;
+  width:calc(50% - 4px);height:calc(100% - 8px);
+  border-radius:12px;
+  background:var(--verde);
+  will-change:transform;
+  z-index:1;
+}
+.selector-turno .etiq{
+  position:relative;z-index:2;flex:1;
+  text-align:center;font-weight:800;font-size:.9rem;
+  pointer-events:none;
+  color:var(--texto-suave);
+  will-change:color;
+}
+
+.sub-tabs{display:flex;gap:6px}
+.sub-tabs button{
+  flex:1;padding:12px 8px;border-radius:14px;
+  background:var(--card);
+  border:1.5px solid var(--gris);
+  font-weight:800;color:var(--texto-suave);
+  font-size:.9rem;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.sub-tabs button.activo{
+  background:var(--verde);border-color:var(--verde);color:var(--sobre-verde);
+}
+
+.filtros{display:flex;gap:8px}
+.filtros select{
+  flex:1;min-width:0;padding:12px;border-radius:14px;
+  border:1.5px solid var(--gris);
+  background:var(--card);
+  font-weight:700;color:var(--verde);
+}
+.orden{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+.orden::-webkit-scrollbar{display:none}
+.chip-orden{
+  flex:0 0 auto;padding:10px 15px;border-radius:99px;
+  background:var(--card);
+  border:1.5px solid var(--gris);
+  font-weight:700;font-size:.88rem;color:var(--texto-suave);
+  white-space:nowrap;
+}
+.chip-orden.activo{background:var(--verde);border-color:var(--verde);color:var(--sobre-verde);}
+
+/* ---------- Listas (dentro de <main>) ---------- */
+.lista{padding:0 14px}
+.seccion-titulo{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:16px 18px 8px;font-size:.9rem;font-weight:800;color:var(--texto-suave);
+  text-transform:uppercase;letter-spacing:.7px;
+}
+.titulo-boton{display:flex;align-items:center;gap:8px;font-size:.9rem;font-weight:800;
+  color:var(--texto-suave);text-transform:uppercase;letter-spacing:.7px}
+.contador{
+  font-size:.78rem;font-weight:800;color:var(--verde);background:var(--verde-claro);
+  padding:3px 9px;border-radius:99px;letter-spacing:0;
+}
+
+.aviso{
+  margin:10px 14px 0;padding:12px 14px;border-radius:14px;
+  background:var(--naranja-suave);color:var(--sobre-aviso);
+  font-size:.88rem;font-weight:600;
+  display:flex;align-items:center;gap:10px;
+}
+.aviso button{margin-left:auto;font-size:1.1rem;color:inherit;padding:4px 6px}
+
+.swipe-wrap{
+  position:relative;margin-bottom:12px;border-radius:var(--radio);overflow:hidden;
+  box-shadow:0 2px 10px var(--sombra-color);background:var(--card);
+  touch-action:pan-y;user-select:none;
+}
+.swipe-bg{
+  position:absolute;inset:0;z-index:1;pointer-events:none;
+  display:flex;align-items:center;
+  font-weight:800;font-size:.95rem;padding:0 22px;
+  background:#d4d800;color:#3c4000;justify-content:flex-start;
+  transition:background .18s ease, color .18s ease;
+}
+.swipe-bg.izquierda{background:#f2a31d;color:#4a2f00;justify-content:flex-end;}
+.swipe-target{will-change:transform;}
+
+.tarjeta{
+  position:relative;z-index:2;display:flex;align-items:center;gap:12px;
+  background:var(--card);border-radius:var(--radio);padding:12px;
+  border-left:7px solid var(--verde);
+}
+.tarjeta.prio-alta{border-left-color:var(--naranja);}
+.tarjeta.prio-media{border-left-color:var(--oliva);}
+.tarjeta.prio-normal{border-left-color:var(--verde);}
+.tarjeta.ducha-hoy{background:linear-gradient(180deg, var(--ducha-hoy-ini), var(--card) 60%);}
+.tarjeta.completada{background:var(--completada-bg);border-left-color:var(--oliva);}
+.tarjeta.completada .nombre{color:var(--texto-suave);}
+
+.hab{
+  flex:0 0 auto;width:60px;height:60px;border-radius:16px;background:var(--verde-claro);
+  color:var(--verde);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-weight:800;font-size:1.12rem;line-height:1;padding:2px;
+}
+.hab small{font-size:.52rem;font-weight:800;letter-spacing:.6px;color:var(--texto-suave);margin-top:3px}
+.tarjeta.completada .hab{background:var(--hab-completada-bg);color:var(--hab-completada-txt);}
+
+.cuerpo{flex:1;min-width:0}
+.nombre{margin:0 0 6px;font-size:1.12rem;font-weight:800;line-height:1.2;word-break:break-word;color:var(--texto)}
+.meta{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:99px;
+  font-size:.76rem;font-weight:800;background:var(--gris);color:var(--texto-suave);
+}
+.chip-ducha{background:var(--gris);color:var(--texto-suave);}
+.chip-ducha.on{background:var(--oliva);color:var(--sobre-oliva);}
+.chip-prio-alta{background:var(--naranja-suave);color:var(--chip-prio-alta-txt);}
+.chip-prio-media{background:var(--chip-azul);color:var(--chip-azul-txt);}
+.chip-prio-normal{background:var(--verde-claro);color:var(--verde);}
+.meta2{font-size:.76rem;color:var(--texto-suave);margin-top:6px;font-weight:700;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.acciones{display:flex;flex-direction:column;gap:8px;flex:0 0 auto}
+.btn-inc{
+  width:44px;height:44px;border-radius:14px;background:var(--gris);font-size:1.2rem;
+  display:grid;place-items:center;border:1.5px solid transparent;
+  transition:background .25s ease, border-color .25s ease, box-shadow .25s ease, transform .12s ease;
+}
+.btn-inc:active{transform:scale(.94);}
+.btn-inc.activo{background:var(--naranja);border-color:#c98311;box-shadow:0 2px 8px rgba(242,163,29,.45);}
+
+.btn-inc.btn-ducha.activo{
+  background:var(--oliva);
+  border-color:rgba(0,0,0,.12);
+  box-shadow:0 2px 8px rgba(212,216,0,.45);
+}
+
+.menu-grupo{
+  background:var(--card);border-radius:var(--radio);margin:12px 14px;box-shadow:0 2px 10px var(--sombra-color);
+  border:1px solid var(--gris);overflow:hidden;
+}
+.menu-grupo-head{
+  display:flex;align-items:center;gap:10px;padding:14px 16px;
+  background:var(--card);
+  border-bottom:1px solid var(--gris);
+}
+.menu-grupo-titulo{font-size:1.05rem;font-weight:800;color:var(--verde);flex:1}
+.menu-grupo .contador{font-size:.85rem;padding:4px 11px}
+.menu-grupo.lleno .contador{background:var(--oliva);color:var(--sobre-oliva);}
+
+.menu-swipe{margin-bottom:0;border-radius:0;box-shadow:none;background:transparent;}
+.menu-swipe:not(:last-child){border-bottom:1px solid var(--gris);}
+.menu-swipe .swipe-bg{padding:0 18px;font-size:.9rem;}
+
+.menu-fila{
+  position:relative;z-index:2;display:flex;align-items:center;gap:12px;padding:12px 16px;
+  background:var(--card);
+}
+.menu-swipe.completado .menu-fila{background:var(--completada-bg);}
+.menu-swipe.completado .menu-info strong{
+  color:var(--texto-suave);
+  text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:var(--oliva);
+}
+.menu-swipe.completado .menu-info small{color:var(--texto-suave);opacity:.7;}
+.menu-swipe.completado .chip-menu{opacity:.55;}
+.menu-swipe.completado .hab{background:var(--hab-completada-bg);color:var(--hab-completada-txt);}
+
+.menu-fila .hab{width:52px;height:52px;border-radius:14px;font-size:1rem;}
+.menu-fila .hab small{font-size:.48rem}
+.menu-info{flex:1;min-width:0}
+.menu-info strong{display:block;font-size:1rem;font-weight:800;color:var(--texto);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.menu-info small{font-size:.76rem;color:var(--texto-suave);font-weight:700}
+.chip-menu{
+  flex:0 0 auto;padding:7px 12px;border-radius:99px;font-size:.82rem;font-weight:800;
+  background:var(--verde-claro);color:var(--verde);white-space:nowrap;
+}
+.menu-swipe.completado .chip-menu::before{content:'✓ ';}
+
+.sub-sep{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px 6px;font-size:.72rem;font-weight:800;color:var(--texto-suave);
+  text-transform:uppercase;letter-spacing:.7px;background:var(--card);
+}
+.sub-sep::after{content:'';flex:1;height:1px;background:var(--gris);}
+
+.vacio{text-align:center;padding:36px 24px;color:var(--texto-suave)}
+.vacio .emoji{font-size:2.6rem;display:block;margin-bottom:10px}
+.vacio strong{display:block;font-size:1.1rem;color:var(--texto);margin-bottom:4px}
+.vacio p{margin:0;font-size:.92rem}
+.vacio-mini{text-align:center;color:var(--texto-suave);font-size:.9rem;padding:14px;margin:0}
+
+.gestion-intro{padding:18px 18px 6px}
+.gestion-intro h2{margin:0 0 4px;font-size:1.35rem;font-weight:800;color:var(--verde)}
+.gestion-intro p{margin:0;font-size:.9rem;color:var(--texto-suave)}
+.bloque{
+  background:var(--card);border-radius:var(--radio);margin:12px 14px;box-shadow:0 2px 10px var(--sombra-color);
+  border:1px solid var(--gris);overflow:hidden;
+}
+.bloque-head{display:flex;align-items:center;gap:8px;padding:12px}
+.bloque-head h3{margin:0;font-size:1.05rem;font-weight:800;flex:1;min-width:0;color:var(--texto);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.toggle{width:32px;height:32px;display:grid;place-items:center;font-size:.85rem;color:var(--verde);
+  transition:transform .22s cubic-bezier(.22,1,.36,1);flex:0 0 auto}
+.toggle.abierto{transform:rotate(90deg);}
+.icono{
+  width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
+  background:var(--fondo);font-size:.95rem;flex:0 0 auto;
+}
+.icono:active{transform:scale(.92);}
+.bloque-body{padding:0 10px 12px;border-top:1px solid var(--gris);}
+.turno-grupo{margin-top:12px}
+.turno-grupo-head{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:6px;
+  border-radius:12px;background:var(--verde-claro);
+  font-size:.82rem;font-weight:800;color:var(--verde);text-transform:uppercase;letter-spacing:.6px;
+}
+.turno-grupo-head .contador{background:var(--card);color:var(--verde);}
+.funcion{background:var(--fondo);border-radius:14px;padding:8px;margin-top:8px;}
+.funcion-head{display:flex;align-items:center;gap:8px;}
+.funcion-head strong{flex:1;min-width:0;font-size:.98rem;font-weight:800;color:var(--texto);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.residente-fila{
+  display:flex;align-items:center;gap:10px;background:var(--card);border-radius:12px;
+  padding:9px 10px;margin-top:8px;border:1px solid var(--gris);
+}
+.rf-hab{
+  flex:0 0 auto;min-width:46px;height:46px;border-radius:12px;background:var(--verde-claro);
+  color:var(--verde);display:grid;place-items:center;font-weight:800;font-size:.95rem;padding:0 6px;
+}
+.rf-info{flex:1;min-width:0}
+.rf-info strong{display:block;font-size:.98rem;font-weight:800;color:var(--texto);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rf-info small{font-size:.76rem;color:var(--texto-suave);font-weight:700}
+.btn-mini{
+  display:block;width:100%;margin-top:10px;padding:12px;border-radius:12px;
+  border:1.5px dashed var(--gris);background:var(--card);color:var(--verde);
+  font-weight:800;font-size:.9rem;
+}
+.gestion-acciones{padding:8px 14px 20px;display:flex;flex-direction:column;gap:10px}
+.fila-botones{display:flex;gap:10px}
+.fila-botones .btn-secundario{flex:1}
+
+.btn-primario{
+  width:100%;padding:16px;border-radius:16px;background:var(--verde);color:var(--sobre-verde);
+  font-weight:800;font-size:1.02rem;box-shadow:0 4px 14px rgba(32,91,78,.25);
+}
+.btn-primario:active{transform:scale(.985);background:var(--verde-oscuro);}
+.btn-secundario{
+  padding:14px;border-radius:14px;background:var(--card);border:1.5px solid var(--gris);
+  font-weight:800;color:var(--verde);
+}
+.btn-secundario:active{background:var(--fondo);}
+.btn-peligro{
+  width:100%;padding:15px;border-radius:16px;
+  background:var(--btn-peligro-bg);color:var(--rojo);
+  font-weight:800;border:1.5px solid var(--btn-peligro-borde);
+}
+
+.modal-fondo{
+  position:fixed;inset:0;background:rgba(16,32,28,.55);z-index:60;
+  display:flex;align-items:flex-end;justify-content:center;
+}
+.modal{
+  width:100%;max-width:560px;background:var(--card);border-radius:26px 26px 0 0;
+  padding:22px 18px calc(22px + env(safe-area-inset-bottom));
+  max-height:92vh;overflow-y:auto;
+  animation:subir .28s cubic-bezier(.22,1,.36,1);
+}
+@keyframes subir{from{transform:translateY(34px);opacity:0}to{transform:translateY(0);opacity:1}}
+@media (min-width:640px){
+  .modal-fondo{align-items:center}
+  .modal{border-radius:26px;margin:16px}
+}
+.modal-titulo{margin:0 0 18px;font-size:1.2rem;font-weight:800;color:var(--verde)}
+.modal-ayuda{margin:-10px 0 14px;font-size:.88rem;color:var(--texto-suave)}
+.campo{display:block;margin-bottom:16px}
+.campo > span{
+  display:block;font-size:.8rem;font-weight:800;color:var(--texto-suave);
+  margin-bottom:7px;text-transform:uppercase;letter-spacing:.6px;
+}
+.campo input{
+  width:100%;padding:15px;border-radius:14px;border:1.5px solid var(--gris);
+  background:var(--fondo);font-weight:700;color:var(--texto);
+}
+.campo input:focus{outline:none;border-color:var(--verde);background:var(--card);}
+.campo-seccion{
+  font-size:.85rem;font-weight:800;color:var(--verde);
+  padding:10px 0 4px;margin-top:6px;border-top:1px solid var(--gris);
+  text-transform:uppercase;letter-spacing:.6px;
+}
+.grupo-toggle{display:flex;gap:8px}
+.grupo-toggle button{
+  flex:1;padding:15px 6px;border-radius:14px;border:1.5px solid var(--gris);
+  background:var(--fondo);font-weight:800;color:var(--texto-suave);font-size:.9rem;
+}
+.grupo-toggle button.activo{background:var(--verde);border-color:var(--verde);color:var(--sobre-verde);}
+.grupo-toggle.menu button{font-size:.76rem;padding:12px 4px;line-height:1.25}
+.modal-botones{display:flex;gap:10px;margin-top:8px}
+.modal-botones .btn-secundario{flex:1}
+.modal-botones .btn-primario{flex:1.4;width:auto}
+.area{
+  width:100%;padding:12px;border-radius:14px;border:1.5px solid var(--gris);
+  background:var(--fondo);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;
+  resize:vertical;color:var(--texto);
+}
+
+.tabbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;gap:6px;
+  background:var(--card);border-top:1px solid var(--gris);
+  padding:8px 12px calc(8px + env(safe-area-inset-bottom));
+}
+.tabbar button{
+  flex:1;padding:9px 8px;border-radius:14px;font-weight:800;font-size:.82rem;
+  color:var(--texto-suave);display:flex;flex-direction:column;align-items:center;gap:3px;
+}
+.tabbar button .ic{font-size:1.35rem;line-height:1}
+.tabbar button.activo{background:var(--verde-claro);color:var(--verde);}
+</style>
+</head>
+<body>
+
+<header class="topbar" id="topbar">
+  <div class="topbar-fijo">
+    <div class="marca">
+      <span class="logo" id="logoApp" aria-hidden="true">🧼</span>
+      <div>
+        <h1 id="tituloApp">Aseo de Mañana</h1>
+        <p class="fecha" id="fechaHoy">—</p>
+      </div>
+    </div>
+    <div class="progreso" id="barraProgreso">
+      <div class="barra"><div class="relleno" id="barraRelleno"></div></div>
+      <span class="texto" id="progresoTexto">0 / 0</span>
+    </div>
+    <div class="resumen-menus" id="resumenMenus" hidden></div>
+  </div>
+
+  <!-- Panel ASEO (desplegable) -->
+  <div class="topbar-panel" id="panelAseo" hidden>
+    <div class="selector-turno" id="selTurnoAseo">
+      <div class="thumb"></div>
+      <div class="etiq" data-val="manana">🌅 Mañanas</div>
+      <div class="etiq" data-val="tarde">🌆 Tardes</div>
+    </div>
+    <div class="filtros">
+      <select id="selZona" aria-label="Filtrar por zona"></select>
+      <select id="selFuncion" aria-label="Filtrar por función"></select>
+    </div>
+    <div class="orden" id="chipsOrden"></div>
+  </div>
+
+  <!-- Panel MENÚS (desplegable) -->
+  <div class="topbar-panel" id="panelMenu" hidden>
+    <div class="selector-turno" id="selTurnoMenu">
+      <div class="thumb"></div>
+      <div class="etiq" data-val="manana">🌅 Mañanas</div>
+      <div class="etiq" data-val="tarde">🌆 Tardes</div>
+    </div>
+    <div class="sub-tabs" id="tabsMenuComida"></div>
+    <div class="filtros">
+      <select id="selZonaMenu" aria-label="Filtrar por zona"></select>
+    </div>
+  </div>
+</header>
+
+<main id="vistaAseo">
+  <div id="zonaAviso"></div>
+  <div class="seccion-titulo">
+    <span>Pendientes hoy</span>
+    <span class="contador" id="contPendientes">0</span>
+  </div>
+  <div id="listaPendientes" class="lista"></div>
+
+  <div class="seccion-titulo">
+    <button class="titulo-boton" id="toggleCompletados">
+      ✅ Completados <span class="contador" id="numCompletados">0</span>
+    </button>
+  </div>
+  <div id="listaCompletados" class="lista"></div>
+</main>
+
+<main id="vistaMenus" hidden>
+  <div id="listaMenus"></div>
+</main>
+
+<main id="vistaGestion" hidden></main>
+
+<nav class="tabbar">
+  <button data-tab="aseo" class="activo"><span class="ic" aria-hidden="true">🧼</span>Aseo</button>
+  <button data-tab="menus"><span class="ic" aria-hidden="true">🍽️</span>Menús</button>
+  <button data-tab="gestion"><span class="ic" aria-hidden="true">⚙️</span>Gestión</button>
+</nav>
+
+<div class="modal-fondo" id="modalFondo" hidden><div class="modal" id="modalCaja"></div></div>
+
+<script>
+/* =====================================================================
+   ASEO Y MENÚS · PWA sin backend · datos en localStorage
+   ===================================================================== */
+
+const $  = (sel, ctx = document) => ctx.querySelector(sel);
+const $$ = (sel, ctx = document) => Array.from(ctx.querySelectorAll(sel));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const vibrar = (ms = 14) => { if (navigator.vibrate) { try { navigator.vibrate(ms); } catch (e) {} } };
+
+const DIAS_SEMANA = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto',
+               'septiembre','octubre','noviembre','diciembre'];
+
+function hoyISO(d = new Date()) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+         String(d.getDate()).padStart(2, '0');
+}
+function textoFecha(d = new Date()) {
+  return DIAS_SEMANA[d.getDay()] + ', ' + d.getDate() + ' de ' + MESES[d.getMonth()];
+}
+
+const DIAS_MODALIDAD = { 'L,X,V': [1, 3, 5], 'M,J,S': [2, 4, 6] };
+
+const ETIQUETA_PRIORIDAD = { alta: 'Prioritario', media: 'Comedor', normal: 'Normal' };
+const ICONO_PRIORIDAD    = { alta: '⚠️', media: '🍽️', normal: '🟢' };
+
+const TURNO_INFO = {
+  manana: { nombre: 'Mañanas', icono: '🌅' },
+  tarde:  { nombre: 'Tardes',  icono: '🌆' }
+};
+
+const OPCIONES_DESAYUNO = {
+  cafe:   { nombre: 'Café',   icono: '☕' },
+  cacao:  { nombre: 'Cacao',  icono: '🍫' },
+  turmix: { nombre: 'Turmix', icono: '🥤' }
+};
+const OPCIONES_COMIDA = {
+  turmix: { nombre: 'Turmix',            icono: '🥤' },
+  facil:  { nombre: 'Fácil masticación', icono: '🥣' },
+  basal:  { nombre: 'Basal',             icono: '🍽️' }
+};
+
+const TIPOS_MENU = {
+  desayuno: { nombre: 'Desayuno', icono: '🥐', turno: 'manana', opciones: OPCIONES_DESAYUNO, campo: 'menuDesayuno' },
+  comida:   { nombre: 'Comida',   icono: '🍽️', turno: 'manana', opciones: OPCIONES_COMIDA,   campo: 'menuComida' },
+  merienda: { nombre: 'Merienda', icono: '🍪', turno: 'tarde',  opciones: OPCIONES_DESAYUNO, campo: 'menuMerienda' },
+  cena:     { nombre: 'Cena',     icono: '🍲', turno: 'tarde',  opciones: OPCIONES_COMIDA,   campo: 'menuCena' }
+};
+
+function tocaDuchaHoy(modalidad) {
+  const dias = DIAS_MODALIDAD[modalidad] || [];
+  return dias.includes(new Date().getDay());
+}
+
+const CLAVE = 'aseoDiario.v1';
+
+function dbPorDefecto() {
+  return {
+    zonas: [],
+    registro: {},
+    ui: {
+      zona: 'todas', funcion: 'todas', orden: 'prioridad', hintVisto: false,
+      vista: 'aseo',
+      turnoAseo: 'manana',
+      menuComida: 'desayuno',
+      zonaMenu: 'todas'
+    }
+  };
+}
+
+function migrarDB(d) {
+  (d.zonas || []).forEach(z => {
+    (z.funciones || []).forEach(f => {
+      if (!f.turno) f.turno = 'manana';
+      (f.residentes || []).forEach(r => {
+        if (!r.menuDesayuno) r.menuDesayuno = 'cafe';
+        if (!r.menuComida)   r.menuComida   = 'basal';
+        if (!r.menuMerienda) r.menuMerienda = 'cafe';
+        if (!r.menuCena)     r.menuCena     = 'basal';
+      });
+    });
+  });
+  return d;
+}
+
+function cargarDB() {
+  try {
+    const raw = localStorage.getItem(CLAVE);
+    if (raw) {
+      const d = JSON.parse(raw);
+      const base = dbPorDefecto();
+      const db = {
+        zonas: Array.isArray(d.zonas) ? d.zonas : [],
+        registro: d.registro && typeof d.registro === 'object' ? d.registro : {},
+        ui: { ...base.ui, ...(d.ui || {}) }
+      };
+      if (!TIPOS_MENU[db.ui.menuComida]) db.ui.menuComida = 'desayuno';
+      if (!TURNO_INFO[db.ui.turnoAseo]) db.ui.turnoAseo = 'manana';
+      if (!['aseo', 'menus', 'gestion'].includes(db.ui.vista)) db.ui.vista = 'aseo';
+      return migrarDB(db);
+    }
+  } catch (e) { console.warn('No se pudo leer localStorage:', e); }
+  return dbPorDefecto();
+}
+
+let db = cargarDB();
+
+function guardarDB() {
+  try { localStorage.setItem(CLAVE, JSON.stringify(db)); }
+  catch (e) { alert('No se pudo guardar. El almacenamiento del dispositivo está lleno o bloqueado.'); }
+}
+
+/* ---------- Registros: solo del día actual ---------- */
+function limpiarRegistrosDeOtrosDias() {
+  const hoy = hoyISO();
+  let cambio = false;
+  Object.keys(db.registro).forEach(k => {
+    if (!k.includes(':')) { delete db.registro[k]; cambio = true; return; }
+    const fecha = k.split(':')[0];
+    if (fecha !== hoy) { delete db.registro[k]; cambio = true; }
+  });
+  if (cambio) guardarDB();
+}
+
+function claveRegistro(ambito) { return hoyISO() + ':' + ambito; }
+
+function registroAmbito(ambito, crear = false) {
+  const k = claveRegistro(ambito);
+  if (!db.registro[k]) {
+    if (!crear) return {};
+    db.registro[k] = {};
+  }
+  return db.registro[k];
+}
+
+function estadoResidente(id, ambito) {
+  const r = registroAmbito(ambito)[id];
+  return {
+    hecho: !!(r && r.hecho),
+    inc: (r && r.inc) || {},
+    duchaSaltada: !!(r && r.duchaSaltada)
+  };
+}
+
+function setHecho(id, ambito, valor) {
+  const reg = registroAmbito(ambito, true);
+  const actual = reg[id] || { inc: {} };
+  actual.hecho = !!valor;
+  actual.ts = valor ? Date.now() : null;
+  reg[id] = actual;
+  guardarDB();
+}
+
+function toggleIncidencia(id, ambito, tipo) {
+  const reg = registroAmbito(ambito, true);
+  const actual = reg[id] || { hecho: false, inc: {} };
+  actual.inc = actual.inc || {};
+  actual.inc[tipo] = !actual.inc[tipo];
+  reg[id] = actual;
+  guardarDB();
+}
+
+function toggleDuchaSaltada(id, ambito) {
+  const reg = registroAmbito(ambito, true);
+  const actual = reg[id] || { inc: {} };
+  actual.duchaSaltada = !actual.duchaSaltada;
+  reg[id] = actual;
+  guardarDB();
+}
+
+const buscarZona = (id) => db.zonas.find(z => z.id === id);
+function buscarFuncion(zonaId, funcId) {
+  const z = buscarZona(zonaId);
+  return z ? (z.funciones || []).find(f => f.id === funcId) : null;
+}
+
+function residentesDeTurno(turno) {
+  const out = [];
+  (db.zonas || []).forEach(z => {
+    if (db.ui.zona !== 'todas' && z.id !== db.ui.zona) return;
+    (z.funciones || []).forEach(f => {
+      if (f.turno !== turno) return;
+      if (db.ui.funcion !== 'todas' && f.id !== db.ui.funcion) return;
+      (f.residentes || []).forEach(r => {
+        out.push({
+          ...r,
+          zonaId: z.id, zonaNombre: z.nombre,
+          funcionId: f.id, funcionNombre: f.nombre
+        });
+      });
+    });
+  });
+  return out;
+}
+
+function residentesUnicosZona(zonaId) {
+  const vistos = new Set();
+  const out = [];
+  (db.zonas || []).forEach(z => {
+    if (zonaId !== 'todas' && z.id !== zonaId) return;
+    (z.funciones || []).forEach(f => (f.residentes || []).forEach(r => {
+      const key = (r.nombre || '') + '|' + (r.habitacion || '');
+      if (vistos.has(key)) return;
+      vistos.add(key);
+      out.push({ ...r, zonaId: z.id, zonaNombre: z.nombre });
+    }));
+  });
+  return out;
+}
+
+const PESO_PRIO = { alta: 0, media: 1, normal: 2 };
+function ordenar(lista, criterio, turno) {
+  const c = lista.slice();
+  const ducha = (r) => tocaDuchaHoy(r.modalidad) ? 1 : 0;
+  const porDucha = turno === 'manana';
+  switch (criterio) {
+    case 'ducha':
+      c.sort((a, b) => ducha(b) - ducha(a) ||
+        PESO_PRIO[a.prioridad] - PESO_PRIO[b.prioridad] ||
+        a.nombre.localeCompare(b.nombre, 'es'));
+      break;
+    case 'habitacion':
+      c.sort((a, b) => String(a.habitacion || '').localeCompare(
+        String(b.habitacion || ''), 'es', { numeric: true }) ||
+        a.nombre.localeCompare(b.nombre, 'es'));
+      break;
+    case 'nombre':
+      c.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+      break;
+    default:
+      c.sort((a, b) => PESO_PRIO[a.prioridad] - PESO_PRIO[b.prioridad] ||
+        (porDucha ? ducha(b) - ducha(a) : 0) ||
+        a.nombre.localeCompare(b.nombre, 'es'));
+  }
+  return c;
+}
+
+/* =====================================================================
+   PALETA INTERPOLABLE + MOTOR DE PROGRESO
+   ===================================================================== */
+const PALETA = {
+  'fondo':              ['#f2f5f4', '#0d181b'],
+  'card':               ['#ffffff', '#18262b'],
+  'texto':              ['#16211f', '#e4eeeb'],
+  'texto-suave':        ['#5c6b68', '#8a9d9a'],
+  'verde':              ['#205b4e', '#4a9d88'],
+  'verde-oscuro':       ['#17423a', '#3a8171'],
+  'verde-claro':        ['#e6efec', '#1d3632'],
+  'gris':               ['#e4e9e7', '#223438'],
+  'oliva':              ['#d4d800', '#b8bc1f'],
+  'naranja':            ['#f2a31d', '#e8a842'],
+  'naranja-suave':      ['#fdf1dc', '#33291a'],
+  'rojo':               ['#b3261e', '#e88585'],
+  'topbar-ini':         ['#205b4e', '#1e3a4a'],
+  'topbar-fin':         ['#17423a', '#08161d'],
+  'topbar-fecha':       ['#cfe0da', '#8fa9a3'],
+  'topbar-sombra':      ['rgba(23,66,58,.28)', 'rgba(0,0,0,.45)'],
+  'resumen-bg':         ['rgba(255,255,255,.14)', 'rgba(255,255,255,.06)'],
+  'resumen-color':      ['#ffffff', '#d6e6e1'],
+  'chip-azul':          ['#f2f6c9', '#2b3016'],
+  'chip-azul-txt':      ['#5a6100', '#c5c92e'],
+  'chip-prio-alta-txt': ['#8a5400', '#f0c47c'],
+  'ducha-hoy-ini':      ['#fbfde9', '#1e2a14'],
+  'completada-bg':      ['#f5f9ef', '#17281e'],
+  'hab-completada-bg':  ['#e9f0dd', '#2a3a1e'],
+  'hab-completada-txt': ['#5c6b2a', '#b8bc1f'],
+  'sobre-verde':        ['#ffffff', '#0d181b'],
+  'sobre-oliva':        ['#3c4000', '#1a1c00'],
+  'sobre-aviso':        ['#7a4a00', '#f0c47c'],
+  'btn-peligro-bg':     ['#fdecea', '#2c1a18'],
+  'btn-peligro-borde':  ['#f6c9c4', '#4a2522'],
+  'barra-prog-a':       ['#d4d800', '#b8bc1f'],
+  'barra-prog-b':       ['#a8d92b', '#8fa32b'],
+  'barra-prog-fondo':   ['rgba(255,255,255,.2)', 'rgba(255,255,255,.08)'],
+  'barra-relleno-glow': ['rgba(184,188,31,0)', 'rgba(184,188,31,.35)'],
+  'sombra-color':       ['rgba(32,91,78,.10)', 'rgba(0,0,0,.45)']
+};
+
+const PALETA_RGB = {};
+for (const k in PALETA) {
+  PALETA_RGB[k] = [parseColor(PALETA[k][0]), parseColor(PALETA[k][1])];
+}
+
+function parseColor(c) {
+  if (typeof c !== 'string') return [0,0,0,1];
+  if (c[0] === '#') {
+    const h = c.slice(1);
+    if (h.length === 6) return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16), 1];
+    if (h.length === 3) return [parseInt(h[0]+h[0],16), parseInt(h[1]+h[1],16), parseInt(h[2]+h[2],16), 1];
+  }
+  const m = c.match(/rgba?\(([^)]+)\)/);
+  if (m) {
+    const p = m[1].split(',').map(s => parseFloat(s.trim()));
+    return [p[0], p[1], p[2], p.length > 3 ? p[3] : 1];
+  }
+  return [0,0,0,1];
+}
+
+function mixArr(a, b, t) {
+  return [
+    a[0] + (b[0]-a[0])*t,
+    a[1] + (b[1]-a[1])*t,
+    a[2] + (b[2]-a[2])*t,
+    a[3] + (b[3]-a[3])*t
+  ];
+}
+function arrToCss(arr) {
+  const r = Math.round(arr[0]);
+  const g = Math.round(arr[1]);
+  const b = Math.round(arr[2]);
+  const a = +arr[3].toFixed(3);
+  return a >= 1 ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${a})`;
+}
+function arrToHex(arr) {
+  const h = (n) => Math.round(n).toString(16).padStart(2, '0');
+  return '#' + h(arr[0]) + h(arr[1]) + h(arr[2]);
+}
+
+let progress = 0;
+let objetivo = 0;
+let animando = false;
+let ultimoTick = 0;
+let onDoneFinal = null;
+
+function aplicarProgreso(t) {
+  for (const k in PALETA_RGB) {
+    const [A, B] = PALETA_RGB[k];
+    document.documentElement.style.setProperty('--' + k, arrToCss(mixArr(A, B, t)));
+  }
+  document.documentElement.style.setProperty('--topbar-noche-op', t.toFixed(3));
+  document.documentElement.style.setProperty('--atmosfera-op', t.toFixed(3));
+
+  const logo = $('#logoApp');
+  if (logo) {
+    if (t < 0.01) {
+      logo.style.filter = '';
+      logo.style.transform = '';
+    } else {
+      logo.style.filter = `drop-shadow(0 0 ${(10*t).toFixed(1)}px rgba(184,188,31,${(0.55*t).toFixed(2)}))`;
+      logo.style.transform = `rotate(${(-8*t).toFixed(2)}deg) scale(${(1 + 0.05*t).toFixed(3)})`;
+    }
+  }
+
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    const hex = arrToHex(mixArr(PALETA_RGB['fondo'][0], PALETA_RGB['fondo'][1], t));
+    meta.setAttribute('content', hex);
+  }
+
+  posicionarSlider($('#selTurnoAseo'), t);
+  posicionarSlider($('#selTurnoMenu'), t);
+  actualizarTitulo(t);
+}
+
+function posicionarSlider(sel, t) {
+  if (!sel) return;
+  const thumb = sel.querySelector('.thumb');
+  const etiqs = sel.querySelectorAll('.etiq');
+  if (!thumb) return;
+
+  const innerW = sel.clientWidth - 8;
+  const travel = innerW / 2;
+  thumb.style.transform = `translateX(${t * travel}px)`;
+
+  const suave  = mixArr(PALETA_RGB['texto-suave'][0],  PALETA_RGB['texto-suave'][1],  t);
+  const activo = mixArr(PALETA_RGB['sobre-verde'][0],  PALETA_RGB['sobre-verde'][1],  t);
+
+  etiqs.forEach((el, i) => {
+    const localT = i === 0
+      ? Math.max(0, 1 - t * 2)
+      : Math.max(0, t * 2 - 1);
+    el.style.color = arrToCss(mixArr(suave, activo, localT));
+  });
+}
+
+function actualizarTitulo(t) {
+  const vista = db.ui.vista || 'aseo';
+  const t1 = $('#tituloApp');
+  if (!t1) return;
+
+  if (vista === 'gestion') {
+    if (t1.textContent !== 'Gestión') t1.textContent = 'Gestión';
+    const logo = $('#logoApp');
+    if (logo && logo.textContent !== '⚙️') logo.textContent = '⚙️';
+    return;
+  }
+  if (vista === 'aseo') {
+    const txt = t > 0.5 ? 'Aseo de Tarde' : 'Aseo de Mañana';
+    if (t1.textContent !== txt) t1.textContent = txt;
+    const logo = $('#logoApp');
+    if (logo) {
+      const target = t > 0.5 ? '🌙' : '🧼';
+      if (logo.textContent !== target) logo.textContent = target;
+    }
+    return;
+  }
+  if (vista === 'menus') {
+    const tipo = db.ui.menuComida;
+    const info = {
+      desayuno: ['Desayunos', '🥐'],
+      comida:   ['Comidas',   '🍽️'],
+      merienda: ['Meriendas', '🍪'],
+      cena:     ['Cenas',     '🍲']
+    }[tipo];
+    if (info) {
+      if (t1.textContent !== info[0]) t1.textContent = info[0];
+      const logo = $('#logoApp');
+      if (logo && logo.textContent !== info[1]) logo.textContent = info[1];
+    }
+  }
+}
+
+function animarHacia(target, onDone) {
+  objetivo = target;
+  if (onDone) onDoneFinal = onDone;
+  if (!animando) { animando = true; ultimoTick = 0; requestAnimationFrame(tick); }
+}
+
+function tick(now) {
+  if (!ultimoTick) ultimoTick = now;
+  const dt = Math.min(48, now - ultimoTick);
+  ultimoTick = now;
+
+  const diff = objetivo - progress;
+  if (Math.abs(diff) < 0.002) {
+    progress = objetivo;
+    aplicarProgreso(progress);
+    animando = false;
+    if (onDoneFinal) { const cb = onDoneFinal; onDoneFinal = null; cb(); }
+    return;
+  }
+  const k = 1 - Math.pow(0.005, dt / 320);
+  progress += diff * k;
+  aplicarProgreso(progress);
+  requestAnimationFrame(tick);
+}
+
+/* =====================================================================
+   FACTORY DE SLIDER
+   ===================================================================== */
+function crearSlider(sel, onSnap) {
+  if (!sel) return;
+  let dragActivo = false;
+  let startX = 0;
+  let startProgress = 0;
+  let historial = [];
+  let huboMovimiento = false;
+  let pid = null;
+
+  sel.addEventListener('pointerdown', (e) => {
+    dragActivo = true;
+    huboMovimiento = false;
+    pid = e.pointerId;
+    try { sel.setPointerCapture(pid); } catch (err) {}
+    startX = e.clientX;
+    startProgress = progress;
+    historial = [{ x: e.clientX, t: performance.now() }];
+    animando = false;
+    e.preventDefault();
+  });
+
+  sel.addEventListener('pointermove', (e) => {
+    if (!dragActivo || e.pointerId !== pid) return;
+    const dx = e.clientX - startX;
+    if (Math.abs(dx) > 5) huboMovimiento = true;
+
+    const travel = (sel.clientWidth - 8) / 2;
+    progress = Math.max(0, Math.min(1, startProgress + dx / travel));
+    aplicarProgreso(progress);
+
+    historial.push({ x: e.clientX, t: performance.now() });
+    if (historial.length > 6) historial.shift();
+  });
+
+  function soltar(e) {
+    if (!dragActivo) return;
+    if (e && e.pointerId !== undefined && e.pointerId !== pid) return;
+    dragActivo = false;
+
+    const ahora = performance.now();
+    const recientes = historial.filter(h => ahora - h.t < 120);
+    let vel = 0;
+    if (recientes.length >= 2) {
+      const a = recientes[0];
+      const b = recientes[recientes.length - 1];
+      const dt = b.t - a.t;
+      if (dt > 0) vel = (b.x - a.x) / dt;
+    }
+
+    const UMBRAL_VEL = 0.4;
+    let destino;
+    if (vel >  UMBRAL_VEL)      destino = 1;
+    else if (vel < -UMBRAL_VEL) destino = 0;
+    else                        destino = progress > 0.5 ? 1 : 0;
+
+    animarHacia(destino, () => onSnap && onSnap(destino));
+  }
+
+  sel.addEventListener('pointerup', soltar);
+  sel.addEventListener('pointercancel', soltar);
+
+  sel.addEventListener('click', (e) => {
+    if (huboMovimiento) return;
+    const r = sel.getBoundingClientRect();
+    const destino = (e.clientX - r.left) < r.width / 2 ? 0 : 1;
+    animarHacia(destino, () => onSnap && onSnap(destino));
+  });
+}
+
+/* =====================================================================
+   PANEL DESPLEGABLE · motor de colapso por scroll
+   ===================================================================== */
+let topbarPanelMaxH = 0;
+
+function panelActivo() {
+  if (db.ui.vista === 'aseo')  return $('#panelAseo');
+  if (db.ui.vista === 'menus') return $('#panelMenu');
+  return null;
+}
+
+function medirTopbar() {
+  const header = $('#topbar');
+  const panel = panelActivo();
+
+  if (!panel) {
+    topbarPanelMaxH = 0;
+    document.documentElement.style.setProperty('--topbar-h', header.offsetHeight + 'px');
+    return;
+  }
+
+  const prevH = panel.style.height;
+
+  /* Medir la parte fija con el panel a 0 */
+  panel.style.height = '0px';
+  const fixedH = header.offsetHeight;
+
+  /* Medir el panel natural */
+  panel.style.height = 'auto';
+  const fullH = header.offsetHeight;
+  topbarPanelMaxH = Math.max(0, fullH - fixedH);
+
+  /* Reservar en el body la altura máxima (constante) */
+  document.documentElement.style.setProperty('--topbar-h', fullH + 'px');
+
+  /* Aplicar el estado según el scroll actual */
+  panel.style.height = prevH;   /* restaurar antes de recalcular */
+  actualizarPanel();
+}
+
+function actualizarPanel() {
+  const panel = panelActivo();
+  if (!panel) return;
+  const s = window.scrollY || window.pageYOffset || 0;
+  let h = topbarPanelMaxH - s;
+  if (h < 0) h = 0;
+  if (h > topbarPanelMaxH) h = topbarPanelMaxH;
+  panel.style.height = h + 'px';
+}
+
+let rafPanelPendiente = false;
+window.addEventListener('scroll', () => {
+  if (rafPanelPendiente) return;
+  rafPanelPendiente = true;
+  requestAnimationFrame(() => {
+    rafPanelPendiente = false;
+    actualizarPanel();
+  });
+}, { passive: true });
+
+window.addEventListener('resize', () => {
+  medirTopbar();
+  aplicarProgreso(progress);
+});
+
+/* =====================================================================
+   VISTA ASEO
+   ===================================================================== */
+let expandidos = new Set();
+let completadosAbiertos = true;
+
+function tarjetaAseoHTML(r, completado, turno) {
+  const est = estadoResidente(r.id, turno);
+  const esManana = turno === 'manana';
+  const duchaHoy = esManana && tocaDuchaHoy(r.modalidad);
+  const prio = ['alta', 'media', 'normal'].includes(r.prioridad) ? r.prioridad : 'normal';
+  const etiquetaPrio = `${ICONO_PRIORIDAD[prio]} ${ETIQUETA_PRIORIDAD[prio]}`;
+  const duchaActiva = duchaHoy && !est.duchaSaltada;
+
+  return `
+  <div class="swipe-wrap ${completado ? 'es-completado' : ''}"
+       data-id="${r.id}" data-ambito="${turno}" data-completado="${completado}"
+       data-texto-completar="✓ Marcar aseado">
+    <div class="swipe-bg" aria-hidden="true"></div>
+    <article class="tarjeta swipe-target prio-${prio} ${duchaHoy ? 'ducha-hoy' : ''} ${completado ? 'completada' : ''}">
+      <div class="hab">${esc(r.habitacion || '—')}<small>HAB</small></div>
+      <div class="cuerpo">
+        <h3 class="nombre">${esc(r.nombre)}</h3>
+        <div class="meta">
+          ${esManana ? `<span class="chip chip-ducha ${duchaHoy ? 'on' : ''}">🚿 ${esc(r.modalidad)}${duchaHoy ? ' · hoy' : ''}</span>` : ''}
+          <span class="chip chip-prio-${prio}">${etiquetaPrio}</span>
+        </div>
+        <div class="meta2">${esc(r.zonaNombre)} · ${esc(r.funcionNombre)}</div>
+      </div>
+      <div class="acciones">
+        ${duchaHoy ? `
+          <button class="btn-inc btn-ducha ${duchaActiva ? 'activo' : ''}"
+                  data-accion="ducha"
+                  aria-pressed="${duchaActiva}"
+                  aria-label="${duchaActiva ? 'Ducha realizada (toca para marcar como no realizada)' : 'Ducha no realizada (toca para marcar como realizada)'}"
+                  title="${duchaActiva ? 'Ducha realizada' : 'Ducha no realizada'}">🚿</button>
+        ` : ''}
+        <button class="btn-inc ${est.inc.caca ? 'activo' : ''}" data-accion="inc" data-inc="caca"
+                aria-label="Incidencia deposición" title="Incidencia deposición">💩</button>
+      </div>
+    </article>
+  </div>`;
+}
+
+function renderChipsOrden() {
+  const turno = db.ui.turnoAseo;
+  const chips = [
+    { id: 'prioridad', txt: '⚡ Prioridad' },
+    ...(turno === 'manana' ? [{ id: 'ducha', txt: '🚿 Ducha hoy' }] : []),
+    { id: 'habitacion', txt: '🚪 Habitación' },
+    { id: 'nombre', txt: '🔤 Nombre' }
+  ];
+  if (!chips.some(c => c.id === db.ui.orden)) db.ui.orden = 'prioridad';
+  $('#chipsOrden').innerHTML = chips.map(c =>
+    `<button class="chip-orden ${db.ui.orden === c.id ? 'activo' : ''}" data-orden="${c.id}">${c.txt}</button>`
+  ).join('');
+}
+
+function renderAseo() {
+  const turno = db.ui.turnoAseo;
+  const lista = ordenar(residentesDeTurno(turno), db.ui.orden, turno);
+  const pendientes = lista.filter(r => !estadoResidente(r.id, turno).hecho);
+  const hechos = lista.filter(r => estadoResidente(r.id, turno).hecho);
+
+  const total = lista.length;
+  const pct = total ? Math.round((hechos.length / total) * 100) : 0;
+  $('#barraRelleno').style.width = pct + '%';
+  $('#progresoTexto').textContent = `${hechos.length} / ${total}`;
+
+  const zonaAviso = $('#zonaAviso');
+  if (!db.ui.hintVisto && pendientes.length && turno === 'manana') {
+    zonaAviso.innerHTML = `<div class="aviso">
+        👉 Desliza una tarjeta a la <strong>derecha</strong> para marcarla como aseada.
+        <button data-accion="cerrar-aviso" aria-label="Cerrar aviso">✕</button>
+      </div>`;
+  } else {
+    zonaAviso.innerHTML = '';
+  }
+
+  $('#contPendientes').textContent = pendientes.length;
+  const contP = $('#listaPendientes');
+  if (!lista.length) {
+    contP.innerHTML = `<div class="vacio"><span class="emoji">📋</span>
+      <strong>No hay residentes en ${TURNO_INFO[turno].nombre.toLowerCase()}</strong>
+      <p>Añádelos desde la pestaña <b>Gestión</b>.</p></div>`;
+  } else if (!pendientes.length) {
+    contP.innerHTML = `<div class="vacio"><span class="emoji">🎉</span>
+      <strong>¡Aseo de ${TURNO_INFO[turno].nombre.toLowerCase()} completado!</strong>
+      <p>Buen trabajo. Puedes revisar los completados abajo.</p></div>`;
+  } else {
+    contP.innerHTML = pendientes.map(r => tarjetaAseoHTML(r, false, turno)).join('');
+  }
+
+  $('#numCompletados').textContent = hechos.length;
+  const contC = $('#listaCompletados');
+  contC.innerHTML = hechos.length
+    ? hechos.map(r => tarjetaAseoHTML(r, true, turno)).join('')
+    : `<p class="vacio-mini">Aún no hay residentes completados en este turno.</p>`;
+  contC.hidden = !completadosAbiertos;
+
+  $$('.swipe-wrap', contP).forEach(prepararSwipe);
+  $$('.swipe-wrap', contC).forEach(prepararSwipe);
+}
+
+/* =====================================================================
+   VISTA MENÚS
+   ===================================================================== */
+function renderTabsMenu() {
+  const turno = TIPOS_MENU[db.ui.menuComida].turno;
+  const tipos = Object.entries(TIPOS_MENU).filter(([, t]) => t.turno === turno);
+  $('#tabsMenuComida').innerHTML = tipos.map(([k, t]) =>
+    `<button data-comida="${k}" class="${db.ui.menuComida === k ? 'activo' : ''}">${t.icono} ${t.nombre}</button>`
+  ).join('');
+
+  const sel = $('#selZonaMenu');
+  sel.innerHTML = `<option value="todas">Todas las zonas</option>` +
+    db.zonas.map(z => `<option value="${z.id}">${esc(z.nombre)}</option>`).join('');
+  if (!db.zonas.some(z => z.id === db.ui.zonaMenu)) db.ui.zonaMenu = 'todas';
+  sel.value = db.ui.zonaMenu;
+}
+
+function renderResumenMenus(lista, tipo) {
+  const t = TIPOS_MENU[tipo];
+  const ambito = 'menu-' + tipo;
+  const conteo = {};
+  const servidos = {};
+  Object.keys(t.opciones).forEach(k => { conteo[k] = 0; servidos[k] = 0; });
+  lista.forEach(r => {
+    const v = r[t.campo] || Object.keys(t.opciones)[0];
+    conteo[v] = (conteo[v] || 0) + 1;
+    if (estadoResidente(r.id, ambito).hecho) servidos[v] = (servidos[v] || 0) + 1;
+  });
+  const html = Object.entries(t.opciones).map(([k, o]) => {
+    const total = conteo[k] || 0;
+    const done = servidos[k] || 0;
+    const extra = total ? ` <b>${done}/${total}</b>` : '';
+    return `<span class="rm">${o.icono} ${esc(o.nombre)}${extra}</span>`;
+  }).join('');
+  $('#resumenMenus').innerHTML = html;
+}
+
+function filaMenuHTML(r, opcion, completado, ambito) {
+  return `
+  <div class="swipe-wrap menu-swipe ${completado ? 'completado' : ''}"
+       data-id="${r.id}" data-ambito="${ambito}" data-completado="${completado}"
+       data-texto-completar="✓ Servido">
+    <div class="swipe-bg" aria-hidden="true"></div>
+    <div class="menu-fila swipe-target">
+      <div class="hab">${esc(r.habitacion || '—')}<small>HAB</small></div>
+      <div class="menu-info">
+        <strong>${esc(r.nombre)}</strong>
+        <small>${esc(r.zonaNombre)}</small>
+      </div>
+      <span class="chip-menu">${opcion.icono} ${esc(opcion.nombre)}</span>
+    </div>
+  </div>`;
+}
+
+function renderMenus() {
+  const tipo = db.ui.menuComida;
+  const t = TIPOS_MENU[tipo];
+  const ambito = 'menu-' + tipo;
+  const lista = residentesUnicosZona(db.ui.zonaMenu);
+
+  renderResumenMenus(lista, tipo);
+
+  if (!lista.length) {
+    $('#listaMenus').innerHTML = `<div class="vacio"><span class="emoji">🍽️</span>
+      <strong>No hay residentes</strong>
+      <p>Añádelos desde la pestaña <b>Gestión</b>.</p></div>`;
+    return;
+  }
+
+  const grupos = {};
+  Object.keys(t.opciones).forEach(k => grupos[k] = []);
+  lista.forEach(r => {
+    const v = r[t.campo] || Object.keys(t.opciones)[0];
+    if (!grupos[v]) grupos[v] = [];
+    grupos[v].push(r);
+  });
+
+  let html = '';
+  Object.entries(t.opciones).forEach(([k, o]) => {
+    const g = grupos[k] || [];
+    if (!g.length) return;
+
+    g.sort((a, b) => String(a.habitacion || '').localeCompare(
+      String(b.habitacion || ''), 'es', { numeric: true }) ||
+      a.nombre.localeCompare(b.nombre, 'es'));
+
+    const pendientes = g.filter(r => !estadoResidente(r.id, ambito).hecho);
+    const hechos     = g.filter(r =>  estadoResidente(r.id, ambito).hecho);
+    const lleno = hechos.length === g.length && g.length > 0;
+
+    html += `<section class="menu-grupo ${lleno ? 'lleno' : ''}">
+      <div class="menu-grupo-head">
+        <span class="menu-grupo-titulo">${o.icono} ${esc(o.nombre)}</span>
+        <span class="contador">${hechos.length} / ${g.length}</span>
+      </div>`;
+
+    pendientes.forEach(r => { html += filaMenuHTML(r, o, false, ambito); });
+    if (hechos.length) {
+      if (pendientes.length) html += `<div class="sub-sep">Servidos</div>`;
+      hechos.forEach(r => { html += filaMenuHTML(r, o, true, ambito); });
+    }
+    html += `</section>`;
+  });
+
+  $('#listaMenus').innerHTML = html;
+  $$('.swipe-wrap', $('#listaMenus')).forEach(prepararSwipe);
+}
+
+/* =====================================================================
+   SWIPE GENÉRICO
+   ===================================================================== */
+function prepararSwipe(wrap) {
+  const card = wrap.querySelector('.swipe-target');
+  const bg   = wrap.querySelector('.swipe-bg');
+  if (!card || !bg) return;
+  const id = wrap.dataset.id;
+  const ambito = wrap.dataset.ambito;
+  const completada = wrap.dataset.completado === 'true';
+  const textoCompletar = wrap.dataset.textoCompletar || '✓ Completar';
+  let startX = 0, startY = 0, dx = 0, activo = false, eje = null, pid = null;
+
+  function resetBg() {
+    bg.classList.remove('izquierda');
+    bg.textContent = '';
+  }
+
+  wrap.addEventListener('pointerdown', (ev) => {
+    if (ev.target.closest('button')) return;
+    if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+    activo = true; eje = null; dx = 0; pid = ev.pointerId;
+    startX = ev.clientX; startY = ev.clientY;
+    card.style.transition = 'none';
+    resetBg();
+  });
+
+  wrap.addEventListener('pointermove', (ev) => {
+    if (!activo || ev.pointerId !== pid) return;
+    const mx = ev.clientX - startX;
+    const my = ev.clientY - startY;
+    if (eje === null) {
+      if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;
+      eje = Math.abs(mx) > Math.abs(my) ? 'x' : 'y';
+      if (eje === 'x') { try { wrap.setPointerCapture(pid); } catch (e) {} }
+    }
+    if (eje !== 'x') return;
+    const tope = (wrap.offsetWidth || 320) * 0.55;
+    dx = Math.max(-tope, Math.min(tope, mx));
+    card.style.transform = `translateX(${dx}px)`;
+
+    if (dx > 4) {
+      if (bg.classList.contains('izquierda')) bg.classList.remove('izquierda');
+      if (bg.textContent !== textoCompletar) bg.textContent = textoCompletar;
+    } else if (dx < -4) {
+      if (!bg.classList.contains('izquierda')) bg.classList.add('izquierda');
+      if (bg.textContent !== '↩ Recuperar') bg.textContent = '↩ Recuperar';
+    } else {
+      resetBg();
+    }
+  });
+
+  function soltar(ev) {
+    if (!activo) return;
+    if (ev && ev.pointerId !== undefined && ev.pointerId !== pid) return;
+    const enEjeX = eje === 'x';
+    activo = false; eje = null;
+    if (!enEjeX) { dx = 0; resetBg(); return; }
+
+    const umbral = 80;
+    const ancho = wrap.offsetWidth || 320;
+    card.style.transition = 'transform .3s cubic-bezier(.22,1,.36,1), opacity .3s ease';
+
+    if (dx > umbral && !completada) {
+      vibrar(18);
+      card.style.transform = `translateX(${ancho}px)`;
+      card.style.opacity = '0';
+      setTimeout(() => {
+        setHecho(id, ambito, true);
+        if (ambito.startsWith('menu-')) renderMenus();
+        else renderAseo();
+      }, 190);
+    } else if (dx < -umbral && completada) {
+      vibrar(18);
+      card.style.transform = `translateX(${-ancho}px)`;
+      card.style.opacity = '0';
+      setTimeout(() => {
+        setHecho(id, ambito, false);
+        if (ambito.startsWith('menu-')) renderMenus();
+        else renderAseo();
+      }, 190);
+    } else {
+      card.style.transform = 'translateX(0)';
+      resetBg();
+    }
+    dx = 0;
+  }
+
+  wrap.addEventListener('pointerup', soltar);
+  wrap.addEventListener('pointercancel', soltar);
+  wrap.addEventListener('lostpointercapture', soltar);
+}
+
+function renderFiltros() {
+  const selZ = $('#selZona');
+  const selF = $('#selFuncion');
+
+  selZ.innerHTML = `<option value="todas">Todas las zonas</option>` +
+    db.zonas.map(z => `<option value="${z.id}">${esc(z.nombre)}</option>`).join('');
+  if (!db.zonas.some(z => z.id === db.ui.zona)) db.ui.zona = 'todas';
+  selZ.value = db.ui.zona;
+
+  let funciones = [];
+  const turno = db.ui.turnoAseo;
+  if (db.ui.zona === 'todas') {
+    db.zonas.forEach(z => (z.funciones || []).forEach(f => {
+      if (f.turno === turno) funciones.push(f);
+    }));
+  } else {
+    const z = buscarZona(db.ui.zona);
+    funciones = ((z && z.funciones) || []).filter(f => f.turno === turno);
+  }
+  selF.innerHTML = `<option value="todas">Todas las funciones</option>` +
+    funciones.map(f => `<option value="${f.id}">${esc(f.nombre)}</option>`).join('');
+  if (!funciones.some(f => f.id === db.ui.funcion)) db.ui.funcion = 'todas';
+  selF.value = db.ui.funcion;
+}
+
+/* =====================================================================
+   VISTA GESTIÓN
+   ===================================================================== */
+function renderGestion() {
+  const cont = $('#vistaGestion');
+  let html = `<div class="gestion-intro">
+      <h2>Gestión</h2>
+      <p>Organiza zonas, funciones y residentes. Los datos se guardan solo en este dispositivo.</p>
+    </div>`;
+
+  if (!db.zonas.length) {
+    html += `<div class="vacio">
+      <span class="emoji">🏥</span>
+      <strong>Sin datos todavía</strong>
+      <p>Crea una zona para empezar, o carga un ejemplo para probar la app.</p>
+      <button class="btn-secundario" data-accion="ejemplo" style="margin-top:16px">Cargar datos de ejemplo</button>
+    </div>`;
+  }
+
+  db.zonas.forEach(z => {
+    const abierta = expandidos.has(z.id);
+    const funciones = z.funciones || [];
+
+    html += `<section class="bloque">
+      <div class="bloque-head">
+        <button class="toggle ${abierta ? 'abierto' : ''}" data-accion="toggle" data-id="${z.id}"
+                aria-label="Desplegar zona">▶</button>
+        <h3>${esc(z.nombre)}</h3>
+        <span class="contador">${funciones.length}</span>
+        <button class="icono" data-accion="editar-zona" data-id="${z.id}" aria-label="Editar zona">✏️</button>
+        <button class="icono" data-accion="borrar-zona" data-id="${z.id}" aria-label="Borrar zona">🗑️</button>
+      </div>`;
+
+    if (abierta) {
+      html += `<div class="bloque-body">`;
+
+      ['manana', 'tarde'].forEach(turno => {
+        const funcsDelTurno = funciones.filter(f => f.turno === turno);
+        const info = TURNO_INFO[turno];
+        html += `<div class="turno-grupo">
+          <div class="turno-grupo-head">
+            <span>${info.icono} ${info.nombre}</span>
+            <span class="contador">${funcsDelTurno.length}</span>
+          </div>`;
+
+        funcsDelTurno.forEach(f => {
+          const abiertaF = expandidos.has(f.id);
+          const residentes = f.residentes || [];
+          html += `<div class="funcion">
+            <div class="funcion-head">
+              <button class="toggle ${abiertaF ? 'abierto' : ''}" data-accion="toggle" data-id="${f.id}"
+                      aria-label="Desplegar función">▶</button>
+              <strong>${esc(f.nombre)}</strong>
+              <span class="contador">${residentes.length}</span>
+              <button class="icono" data-accion="editar-funcion" data-id="${f.id}" data-zona="${z.id}"
+                      aria-label="Editar función">✏️</button>
+              <button class="icono" data-accion="borrar-funcion" data-id="${f.id}" data-zona="${z.id}"
+                      aria-label="Borrar función">🗑️</button>
+            </div>`;
+
+          if (abiertaF) {
+            residentes.forEach(r => {
+              const pInfo = ICONO_PRIORIDAD[r.prioridad] || '';
+              const pTxt  = ETIQUETA_PRIORIDAD[r.prioridad] || r.prioridad;
+              html += `<div class="residente-fila">
+                <div class="rf-hab">${esc(r.habitacion || '—')}</div>
+                <div class="rf-info">
+                  <strong>${esc(r.nombre)}</strong>
+                  <small>${turno === 'manana' ? '🚿 ' + esc(r.modalidad) + ' · ' : ''}${pInfo} ${esc(pTxt)}</small>
+                </div>
+                <button class="icono" data-accion="editar-residente" data-id="${r.id}"
+                        data-zona="${z.id}" data-funcion="${f.id}" aria-label="Editar residente">✏️</button>
+                <button class="icono" data-accion="borrar-residente" data-id="${r.id}"
+                        data-zona="${z.id}" data-funcion="${f.id}" aria-label="Borrar residente">🗑️</button>
+              </div>`;
+            });
+            html += `<button class="btn-mini" data-accion="nuevo-residente"
+                       data-zona="${z.id}" data-funcion="${f.id}">+ Añadir residente</button>`;
+          }
+          html += `</div>`;
+        });
+
+        html += `<button class="btn-mini" data-accion="nueva-funcion"
+                   data-zona="${z.id}" data-turno="${turno}">+ Añadir función de ${info.nombre.toLowerCase()}</button>`;
+        html += `</div>`;
+      });
+
+      html += `</div>`;
+    }
+    html += `</section>`;
+  });
+
+  html += `<div class="gestion-acciones">
+      <button class="btn-primario" data-accion="nueva-zona">+ Añadir zona</button>
+      <div class="fila-botones">
+        <button class="btn-secundario" data-accion="exportar">⬇️ Exportar</button>
+        <button class="btn-secundario" data-accion="importar">⬆️ Importar</button>
+      </div>
+      <button class="btn-peligro" data-accion="borrar-todo">🗑️ Borrar todos los datos</button>
+    </div>`;
+
+  cont.innerHTML = html;
+}
+
+/* ---------- Modales ---------- */
+const modalFondo = $('#modalFondo');
+const modalCaja = $('#modalCaja');
+
+function abrirModal(html, montar) {
+  modalCaja.innerHTML = html;
+  modalFondo.hidden = false;
+  document.body.style.overflow = 'hidden';
+  if (typeof montar === 'function') montar(modalCaja);
+}
+function cerrarModal() {
+  modalFondo.hidden = true;
+  modalCaja.innerHTML = '';
+  document.body.style.overflow = '';
+}
+modalFondo.addEventListener('click', (ev) => {
+  if (ev.target === modalFondo || ev.target.closest('[data-cerrar]')) cerrarModal();
+});
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape' && !modalFondo.hidden) cerrarModal();
+});
+
+function modalZona(zona) {
+  abrirModal(`
+    <h3 class="modal-titulo">${zona ? 'Editar zona' : 'Nueva zona'}</h3>
+    <label class="campo"><span>Nombre de la zona</span>
+      <input id="mNombre" type="text" autocomplete="off" placeholder="Ej. Zona Norte"
+             value="${zona ? esc(zona.nombre) : ''}">
+    </label>
+    <div class="modal-botones">
+      <button class="btn-secundario" data-cerrar>Cancelar</button>
+      <button class="btn-primario" id="mGuardar">Guardar</button>
+    </div>`, (caja) => {
+    const input = caja.querySelector('#mNombre');
+    input.focus();
+    const guardar = () => {
+      const nombre = input.value.trim();
+      if (!nombre) { input.focus(); return; }
+      if (zona) zona.nombre = nombre;
+      else db.zonas.push({ id: uid(), nombre, funciones: [] });
+      guardarDB(); cerrarModal(); renderFiltros(); renderGestion(); renderTabsMenu();
+      medirTopbar();
+    };
+    caja.querySelector('#mGuardar').addEventListener('click', guardar);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') guardar(); });
+  });
+}
+
+function modalFuncion(zonaId, funcion, turnoDefecto) {
+  const zona = buscarZona(zonaId);
+  if (!zona) return;
+  let turno = (funcion && funcion.turno) || turnoDefecto || 'manana';
+
+  const btnT = (v) =>
+    `<button type="button" data-val="${v}" class="${turno === v ? 'activo' : ''}">${TURNO_INFO[v].icono} ${TURNO_INFO[v].nombre}</button>`;
+
+  abrirModal(`
+    <h3 class="modal-titulo">${funcion ? 'Editar función' : 'Nueva función'}</h3>
+    <p class="modal-ayuda">Zona: <b>${esc(zona.nombre)}</b></p>
+    <label class="campo"><span>Nombre de la función</span>
+      <input id="mNombre" type="text" autocomplete="off" placeholder="Ej. Aseo de mañana"
+             value="${funcion ? esc(funcion.nombre) : ''}">
+    </label>
+    <div class="campo"><span>Turno</span>
+      <div class="grupo-toggle" id="gTurno">
+        ${btnT('manana')}
+        ${btnT('tarde')}
+      </div>
+    </div>
+    <div class="modal-botones">
+      <button class="btn-secundario" data-cerrar>Cancelar</button>
+      <button class="btn-primario" id="mGuardar">Guardar</button>
+    </div>`, (caja) => {
+    caja.querySelector('#gTurno').addEventListener('click', (ev) => {
+      const b = ev.target.closest('button[data-val]');
+      if (!b) return;
+      turno = b.dataset.val;
+      caja.querySelectorAll('#gTurno button').forEach(x => x.classList.toggle('activo', x === b));
+    });
+    const input = caja.querySelector('#mNombre');
+    input.focus();
+    const guardar = () => {
+      const nombre = input.value.trim();
+      if (!nombre) { input.focus(); return; }
+      if (funcion) {
+        funcion.nombre = nombre;
+        funcion.turno = turno;
+      } else {
+        zona.funciones = zona.funciones || [];
+        zona.funciones.push({ id: uid(), nombre, turno, residentes: [] });
+      }
+      guardarDB(); cerrarModal(); renderFiltros(); renderGestion(); renderAseo();
+      medirTopbar();
+    };
+    caja.querySelector('#mGuardar').addEventListener('click', guardar);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') guardar(); });
+  });
+}
+
+function modalResidente(residente, zonaId, funcionId, turnoFuncion) {
+  const esManana = turnoFuncion === 'manana';
+  let modalidad    = (residente && residente.modalidad) || 'L,X,V';
+  let prioridad    = (residente && residente.prioridad) || 'normal';
+  let menuDesayuno = (residente && residente.menuDesayuno) || 'cafe';
+  let menuComida   = (residente && residente.menuComida)   || 'basal';
+  let menuMerienda = (residente && residente.menuMerienda) || 'cafe';
+  let menuCena     = (residente && residente.menuCena)     || 'basal';
+
+  const btnMod = (v, txt) =>
+    `<button type="button" data-val="${v}" class="${modalidad === v ? 'activo' : ''}">${txt}</button>`;
+  const btnPri = (v, txt) =>
+    `<button type="button" data-val="${v}" class="${prioridad === v ? 'activo' : ''}">${txt}</button>`;
+  const btnMenu = (actual, opciones) =>
+    Object.entries(opciones).map(([k, o]) =>
+      `<button type="button" data-val="${k}" class="${actual === k ? 'activo' : ''}">${o.icono} ${o.nombre}</button>`
+    ).join('');
+
+  abrirModal(`
+    <h3 class="modal-titulo">${residente ? 'Editar residente' : 'Nuevo residente'}</h3>
+    <label class="campo"><span>Nombre</span>
+      <input id="rNombre" type="text" autocomplete="off" placeholder="Nombre y apellidos"
+             value="${residente ? esc(residente.nombre) : ''}">
+    </label>
+    <label class="campo"><span>Habitación</span>
+      <input id="rHab" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej. 214"
+             value="${residente ? esc(residente.habitacion || '') : ''}">
+    </label>
+
+    ${esManana ? `
+    <div class="campo"><span>Modalidad de ducha (Mañanas)</span>
+      <div class="grupo-toggle" id="gMod">
+        ${btnMod('L,X,V', 'L · X · V')}
+        ${btnMod('M,J,S', 'M · J · S')}
+      </div>
+    </div>` : ''}
+
+    <div class="campo"><span>Prioridad</span>
+      <div class="grupo-toggle" id="gPri">
+        ${btnPri('alta',   '⚠️ Prioritario')}
+        ${btnPri('media',  '🍽️ Comedor')}
+        ${btnPri('normal', '🟢 Normal')}
+      </div>
+    </div>
+
+    <div class="campo-seccion">🍽️ Menús del día</div>
+
+    <div class="campo"><span>☕ Desayuno</span>
+      <div class="grupo-toggle menu" data-campo="menuDesayuno">
+        ${btnMenu(menuDesayuno, OPCIONES_DESAYUNO)}
+      </div>
+    </div>
+    <div class="campo"><span>🍽️ Comida</span>
+      <div class="grupo-toggle menu" data-campo="menuComida">
+        ${btnMenu(menuComida, OPCIONES_COMIDA)}
+      </div>
+    </div>
+    <div class="campo"><span>🍪 Merienda</span>
+      <div class="grupo-toggle menu" data-campo="menuMerienda">
+        ${btnMenu(menuMerienda, OPCIONES_DESAYUNO)}
+      </div>
+    </div>
+    <div class="campo"><span>🍲 Cena</span>
+      <div class="grupo-toggle menu" data-campo="menuCena">
+        ${btnMenu(menuCena, OPCIONES_COMIDA)}
+      </div>
+    </div>
+
+    <div class="modal-botones">
+      <button class="btn-secundario" data-cerrar>Cancelar</button>
+      <button class="btn-primario" id="rGuardar">Guardar</button>
+    </div>`, (caja) => {
+
+    const gMod = caja.querySelector('#gMod');
+    if (gMod) gMod.addEventListener('click', (ev) => {
+      const b = ev.target.closest('button[data-val]');
+      if (!b) return;
+      modalidad = b.dataset.val;
+      gMod.querySelectorAll('button').forEach(x => x.classList.toggle('activo', x === b));
+    });
+
+    caja.querySelector('#gPri').addEventListener('click', (ev) => {
+      const b = ev.target.closest('button[data-val]');
+      if (!b) return;
+      prioridad = b.dataset.val;
+      caja.querySelectorAll('#gPri button').forEach(x => x.classList.toggle('activo', x === b));
+    });
+
+    caja.querySelectorAll('.grupo-toggle[data-campo]').forEach(gr => {
+      gr.addEventListener('click', (ev) => {
+        const b = ev.target.closest('button[data-val]');
+        if (!b) return;
+        const campo = gr.dataset.campo;
+        if (campo === 'menuDesayuno') menuDesayuno = b.dataset.val;
+        else if (campo === 'menuComida') menuComida = b.dataset.val;
+        else if (campo === 'menuMerienda') menuMerienda = b.dataset.val;
+        else if (campo === 'menuCena') menuCena = b.dataset.val;
+        gr.querySelectorAll('button').forEach(x => x.classList.toggle('activo', x === b));
+      });
+    });
+
+    const inputNombre = caja.querySelector('#rNombre');
+    inputNombre.focus();
+
+    const guardar = () => {
+      const nombre = inputNombre.value.trim();
+      const habitacion = caja.querySelector('#rHab').value.trim();
+      if (!nombre) { inputNombre.focus(); return; }
+      const datos = {
+        nombre, habitacion, modalidad, prioridad,
+        menuDesayuno, menuComida, menuMerienda, menuCena
+      };
+
+      if (residente) {
+        Object.assign(residente, datos);
+      } else {
+        const f = buscarFuncion(zonaId, funcionId);
+        if (!f) return;
+        f.residentes = f.residentes || [];
+        f.residentes.push({ id: uid(), ...datos });
+      }
+      guardarDB(); cerrarModal();
+      renderFiltros(); renderGestion(); renderAseo(); renderMenus();
+      medirTopbar();
+    };
+    caja.querySelector('#rGuardar').addEventListener('click', guardar);
+    inputNombre.addEventListener('keydown', e => { if (e.key === 'Enter') guardar(); });
+  });
+}
+
+function cargarEjemplo() {
+  const menuRandom = () => {
+    const des = Object.keys(OPCIONES_DESAYUNO);
+    const com = Object.keys(OPCIONES_COMIDA);
+    return {
+      menuDesayuno: des[Math.floor(Math.random() * des.length)],
+      menuComida:   com[Math.floor(Math.random() * com.length)],
+      menuMerienda: des[Math.floor(Math.random() * des.length)],
+      menuCena:     com[Math.floor(Math.random() * com.length)]
+    };
+  };
+  const ej = [
+    {
+      nombre: 'Zona Norte', funciones: [
+        { nombre: 'Aseo de mañana', turno: 'manana', residentes: [
+          { nombre: 'María López Serrano', habitacion: '101', modalidad: 'L,X,V', prioridad: 'alta',  ...menuRandom() },
+          { nombre: 'Antonio Ruiz Peña',   habitacion: '102', modalidad: 'M,J,S', prioridad: 'normal', ...menuRandom() },
+          { nombre: 'Carmen Díaz Mora',    habitacion: '103', modalidad: 'L,X,V', prioridad: 'media', ...menuRandom() }
+        ]},
+        { nombre: 'Aseo de tarde', turno: 'tarde', residentes: [
+          { nombre: 'Josefa Martín Gil',   habitacion: '108', modalidad: 'M,J,S', prioridad: 'alta',  ...menuRandom() },
+          { nombre: 'Manuel Ortega Vega',  habitacion: '109', modalidad: 'L,X,V', prioridad: 'normal', ...menuRandom() }
+        ]}
+      ]
+    },
+    {
+      nombre: 'Zona Sur', funciones: [
+        { nombre: 'Aseo de mañana', turno: 'manana', residentes: [
+          { nombre: 'Rosario Navarro', habitacion: '201', modalidad: 'M,J,S', prioridad: 'media',  ...menuRandom() },
+          { nombre: 'Francisco Salas', habitacion: '202', modalidad: 'L,X,V', prioridad: 'normal', ...menuRandom() }
+        ]},
+        { nombre: 'Aseo de tarde', turno: 'tarde', residentes: [
+          { nombre: 'Luisa Ferrer', habitacion: '205', modalidad: 'L,X,V', prioridad: 'normal', ...menuRandom() }
+        ]}
+      ]
+    }
+  ];
+  db.zonas = ej.map(z => ({
+    id: uid(), nombre: z.nombre,
+    funciones: z.funciones.map(f => ({
+      id: uid(), nombre: f.nombre, turno: f.turno,
+      residentes: f.residentes.map(r => ({ id: uid(), ...r }))
+    }))
+  }));
+  guardarDB();
+  renderFiltros(); renderGestion(); renderAseo(); renderTabsMenu(); renderMenus();
+  medirTopbar();
+}
+
+/* =====================================================================
+   SINCRONIZACIÓN SLIDER ↔ ESTADO
+   ===================================================================== */
+function onSnapAseo(destino) {
+  const turno = destino === 0 ? 'manana' : 'tarde';
+  if (db.ui.turnoAseo !== turno) {
+    db.ui.turnoAseo = turno;
+    db.ui.funcion = 'todas';
+    guardarDB();
+    renderFiltros(); renderChipsOrden(); renderAseo();
+    medirTopbar();
+  }
+}
+function onSnapMenu(destino) {
+  const turno = destino === 0 ? 'manana' : 'tarde';
+  const tipoActual = TIPOS_MENU[db.ui.menuComida];
+  if (tipoActual.turno !== turno) {
+    const primera = Object.entries(TIPOS_MENU).find(([, t]) => t.turno === turno);
+    if (primera) {
+      db.ui.menuComida = primera[0];
+      guardarDB();
+      renderTabsMenu(); renderMenus();
+      actualizarTitulo(progress);
+      medirTopbar();
+    }
+  }
+}
+
+function targetProgresoDeVista(vista) {
+  if (vista === 'aseo')  return db.ui.turnoAseo === 'tarde' ? 1 : 0;
+  if (vista === 'menus') return TIPOS_MENU[db.ui.menuComida].turno === 'tarde' ? 1 : 0;
+  return 0;
+}
+
+/* =====================================================================
+   EVENTOS
+   ===================================================================== */
+function cambiarVista(vista) {
+  db.ui.vista = vista;
+  guardarDB();
+  $$('.tabbar button').forEach(b => b.classList.toggle('activo', b.dataset.tab === vista));
+  $('#vistaAseo').hidden    = vista !== 'aseo';
+  $('#vistaMenus').hidden   = vista !== 'menus';
+  $('#vistaGestion').hidden = vista !== 'gestion';
+  $('#barraProgreso').hidden = vista !== 'aseo';
+  $('#resumenMenus').hidden  = vista !== 'menus';
+  $('#panelAseo').hidden = vista !== 'aseo';
+  $('#panelMenu').hidden = vista !== 'menus';
+
+  if (vista === 'aseo')    renderAseo();
+  if (vista === 'menus') { renderTabsMenu(); renderMenus(); }
+  if (vista === 'gestion') renderGestion();
+
+  /* Subir al top para que el panel aparezca desplegado */
+  window.scrollTo(0, 0);
+  medirTopbar();
+  animarHacia(targetProgresoDeVista(vista));
+}
+
+$$('.tabbar button').forEach(btn => {
+  btn.addEventListener('click', () => cambiarVista(btn.dataset.tab));
+});
+
+$('#tabsMenuComida').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-comida]');
+  if (!b) return;
+  db.ui.menuComida = b.dataset.comida;
+  guardarDB();
+  renderTabsMenu(); renderMenus();
+  actualizarTitulo(progress);
+  medirTopbar();
+  animarHacia(targetProgresoDeVista('menus'));
+});
+
+$('#selZona').addEventListener('change', (e) => {
+  db.ui.zona = e.target.value;
+  db.ui.funcion = 'todas';
+  guardarDB(); renderFiltros(); renderAseo();
+  medirTopbar();
+});
+$('#selFuncion').addEventListener('change', (e) => {
+  db.ui.funcion = e.target.value;
+  guardarDB(); renderAseo();
+});
+
+$('#selZonaMenu').addEventListener('change', (e) => {
+  db.ui.zonaMenu = e.target.value;
+  guardarDB(); renderMenus();
+});
+
+$('#chipsOrden').addEventListener('click', (e) => {
+  const b = e.target.closest('.chip-orden');
+  if (!b) return;
+  db.ui.orden = b.dataset.orden;
+  guardarDB(); renderChipsOrden(); renderAseo();
+  medirTopbar();
+});
+
+$('#toggleCompletados').addEventListener('click', () => {
+  completadosAbiertos = !completadosAbiertos;
+  $('#listaCompletados').hidden = !completadosAbiertos;
+});
+
+document.addEventListener('click', (e) => {
+  const btnDucha = e.target.closest('[data-accion="ducha"]');
+  if (btnDucha) {
+    const wrap = btnDucha.closest('.swipe-wrap');
+    if (!wrap) return;
+    vibrar(12);
+    toggleDuchaSaltada(wrap.dataset.id, wrap.dataset.ambito);
+    renderAseo();
+    return;
+  }
+  const btn = e.target.closest('[data-accion="inc"]');
+  if (btn) {
+    const wrap = btn.closest('.swipe-wrap');
+    if (!wrap) return;
+    vibrar(12);
+    toggleIncidencia(wrap.dataset.id, wrap.dataset.ambito, btn.dataset.inc);
+    renderAseo();
+    return;
+  }
+  if (e.target.closest('[data-accion="cerrar-aviso"]')) {
+    db.ui.hintVisto = true;
+    guardarDB();
+    $('#zonaAviso').innerHTML = '';
+    medirTopbar();
+  }
+});
+
+$('#vistaGestion').addEventListener('click', (e) => {
+  const el = e.target.closest('[data-accion]');
+  if (!el) return;
+  const acc = el.dataset.accion;
+  const id = el.dataset.id;
+  const zonaId = el.dataset.zona;
+  const funcId = el.dataset.funcion;
+  const turnoDef = el.dataset.turno;
+
+  switch (acc) {
+    case 'toggle':
+      expandidos.has(id) ? expandidos.delete(id) : expandidos.add(id);
+      renderGestion();
+      break;
+
+    case 'nueva-zona': modalZona(null); break;
+    case 'editar-zona': modalZona(buscarZona(id)); break;
+    case 'borrar-zona': {
+      const z = buscarZona(id);
+      if (!z) return;
+      if (!confirm(`¿Borrar la zona "${z.nombre}" y todo su contenido?`)) return;
+      db.zonas = db.zonas.filter(x => x.id !== id);
+      guardarDB(); renderFiltros(); renderGestion(); renderAseo(); renderMenus();
+      medirTopbar();
+      break;
+    }
+
+    case 'nueva-funcion': modalFuncion(zonaId, null, turnoDef); break;
+    case 'editar-funcion': modalFuncion(zonaId, buscarFuncion(zonaId, id)); break;
+    case 'borrar-funcion': {
+      const z = buscarZona(zonaId);
+      const f = buscarFuncion(zonaId, id);
+      if (!z || !f) return;
+      if (!confirm(`¿Borrar la función "${f.nombre}" y sus residentes?`)) return;
+      z.funciones = z.funciones.filter(x => x.id !== id);
+      guardarDB(); renderFiltros(); renderGestion(); renderAseo(); renderMenus();
+      medirTopbar();
+      break;
+    }
+
+    case 'nuevo-residente': {
+      const f = buscarFuncion(zonaId, funcId);
+      const turno = f ? f.turno : 'manana';
+      modalResidente(null, zonaId, funcId, turno);
+      break;
+    }
+    case 'editar-residente': {
+      const f = buscarFuncion(zonaId, funcId);
+      const r = f && (f.residentes || []).find(x => x.id === id);
+      if (r) modalResidente(r, zonaId, funcId, f.turno);
+      break;
+    }
+    case 'borrar-residente': {
+      const f = buscarFuncion(zonaId, funcId);
+      const r = f && (f.residentes || []).find(x => x.id === id);
+      if (!r) return;
+      if (!confirm(`¿Borrar a "${r.nombre}"?`)) return;
+      f.residentes = f.residentes.filter(x => x.id !== id);
+      guardarDB(); renderFiltros(); renderGestion(); renderAseo(); renderMenus();
+      medirTopbar();
+      break;
+    }
+
+    case 'ejemplo':
+      if (db.zonas.length && !confirm('Ya existen datos. ¿Añadir el ejemplo igualmente?')) return;
+      cargarEjemplo();
+      break;
+
+    case 'exportar': {
+      const txt = JSON.stringify(db, null, 2);
+      abrirModal(`
+        <h3 class="modal-titulo">Exportar datos</h3>
+        <p class="modal-ayuda">Copia este texto para guardar una copia de seguridad.</p>
+        <textarea class="area" id="expTxt" rows="9" readonly>${esc(txt)}</textarea>
+        <div class="modal-botones">
+          <button class="btn-secundario" data-cerrar>Cerrar</button>
+          <button class="btn-primario" id="expCopiar">Copiar</button>
+        </div>`, (caja) => {
+        caja.querySelector('#expCopiar').addEventListener('click', async () => {
+          const ta = caja.querySelector('#expTxt');
+          try {
+            await navigator.clipboard.writeText(ta.value);
+            caja.querySelector('#expCopiar').textContent = '¡Copiado!';
+          } catch (err) {
+            ta.focus(); ta.select();
+            try { document.execCommand('copy'); caja.querySelector('#expCopiar').textContent = '¡Copiado!'; } catch (e2) {}
+          }
+        });
+      });
+      break;
+    }
+
+    case 'importar':
+      abrirModal(`
+        <h3 class="modal-titulo">Importar datos</h3>
+        <p class="modal-ayuda">Pega una copia exportada. Se reemplazarán los datos actuales.</p>
+        <textarea class="area" id="impTxt" rows="9" placeholder='{"zonas":[...]}'></textarea>
+        <div class="modal-botones">
+          <button class="btn-secundario" data-cerrar>Cancelar</button>
+          <button class="btn-primario" id="impOk">Importar</button>
+        </div>`, (caja) => {
+        caja.querySelector('#impOk').addEventListener('click', () => {
+          try {
+            const datos = JSON.parse(caja.querySelector('#impTxt').value);
+            if (!datos || !Array.isArray(datos.zonas)) throw new Error('formato');
+            const base = dbPorDefecto();
+            db.zonas = datos.zonas;
+            db.registro = datos.registro && typeof datos.registro === 'object' ? datos.registro : {};
+            db.ui = { ...base.ui, ...(datos.ui || {}) };
+            migrarDB(db);
+            limpiarRegistrosDeOtrosDias();
+            guardarDB(); cerrarModal();
+            renderFiltros(); renderGestion(); renderAseo();
+            renderChipsOrden(); renderTabsMenu(); renderMenus();
+            cambiarVista(db.ui.vista || 'aseo');
+          } catch (err) {
+            alert('El texto no tiene un formato válido.');
+          }
+        });
+      });
+      break;
+
+    case 'borrar-todo':
+      if (!confirm('¿Borrar TODOS los datos de este dispositivo? Esta acción no se puede deshacer.')) return;
+      if (!confirm('Confirma de nuevo: se perderán zonas, funciones, residentes y registros.')) return;
+      localStorage.removeItem(CLAVE);
+      db = dbPorDefecto();
+      expandidos.clear();
+      renderFiltros(); renderChipsOrden(); renderGestion(); renderAseo();
+      renderTabsMenu(); renderMenus();
+      cambiarVista('aseo');
+      break;
+  }
+});
+
+/* =====================================================================
+   ARRANQUE
+   ===================================================================== */
+let diaActual = hoyISO();
+
+function comprobarCambioDia() {
+  const h = hoyISO();
+  if (h === diaActual) return;
+  diaActual = h;
+  limpiarRegistrosDeOtrosDias();
+  const fecha = $('#fechaHoy');
+  if (fecha) fecha.textContent = textoFecha();
+  if (db.ui.vista === 'aseo')  renderAseo();
+  if (db.ui.vista === 'menus') renderMenus();
+}
+
+function init() {
+  limpiarRegistrosDeOtrosDias();
+  $('#fechaHoy').textContent = textoFecha();
+
+  crearSlider($('#selTurnoAseo'), onSnapAseo);
+  crearSlider($('#selTurnoMenu'), onSnapMenu);
+
+  progress = objetivo = targetProgresoDeVista(db.ui.vista || 'aseo');
+  aplicarProgreso(progress);
+
+  cambiarVista(db.ui.vista || 'aseo');
+
+  renderChipsOrden();
+  renderFiltros();
+  renderTabsMenu();
+  renderAseo();
+  renderMenus();
+  aplicarProgreso(progress);
+
+  /* Medir topbar tras primer render */
+  requestAnimationFrame(() => medirTopbar());
+
+  setInterval(comprobarCambioDia, 30000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) comprobarCambioDia();
+  });
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+}
+
+init();
+</script>
+</body>
+</html>
